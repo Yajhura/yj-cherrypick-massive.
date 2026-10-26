@@ -14,7 +14,7 @@ interface Props {
   onCopy: (text: string) => void;
 }
 
-type Display = "applied" | "empty" | "skipped" | "conflict" | "pending" | "working";
+export type Display = "applied" | "empty" | "skipped" | "conflict" | "pending" | "working";
 
 const labels: Record<Display, { text: string; Icon: typeof Check }> = {
   applied: { text: "Applied", Icon: CircleCheck },
@@ -25,7 +25,7 @@ const labels: Record<Display, { text: string; Icon: typeof Check }> = {
   pending: { text: "Pending", Icon: CircleDashed },
 };
 
-function displayOf(item: PickItem, index: number, session: Session, busy: boolean): Display {
+export function displayOf(item: PickItem, index: number, session: Session, busy: boolean): Display {
   if (item.status !== "pending") return item.status;
   if (index === session.current) {
     if (session.state.kind === "conflict" || session.state.kind === "failed") return "conflict";
@@ -55,6 +55,11 @@ export function SessionPanel({ session, busy, error, ...actions }: Props) {
         <h1>Cherry-pick into {session.target}</h1>
         <div className="route mono">→ {session.branch}</div>
         <div className="progress" aria-live="polite">
+          {state.kind !== "completed" && (
+            <span>
+              Commit {Math.min(session.current + 1, items.length)} of {items.length}
+            </span>
+          )}
           <span>{items.length} commits</span>
           <span>{count("applied")} applied</span>
           <span>{count("empty")} already there</span>

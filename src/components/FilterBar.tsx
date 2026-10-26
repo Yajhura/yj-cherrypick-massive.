@@ -31,7 +31,7 @@ export const FilterBar = forwardRef<HTMLInputElement, Props>(function FilterBar(
       </label>
       <label className="field">
         <span>Author</span>
-        <input className="input" placeholder="Name or email" value={filters.author} onChange={(e) => onChange({ author: e.target.value })} />
+        <input className="input" placeholder="Name" title="Name or email" value={filters.author} onChange={(e) => onChange({ author: e.target.value })} />
       </label>
       <label className="field">
         <span>From</span>

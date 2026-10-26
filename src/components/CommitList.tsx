@@ -1,8 +1,11 @@
 import { forwardRef, KeyboardEvent, useEffect, useRef } from "react";
 import { Commit } from "../api";
+import { Display, StatusChip } from "./SessionPanel";
 
 interface Props {
   commits: Commit[];
+  /** Status of commits that belong to the active cherry-pick session. */
+  sessionStatus: Map<string, Display>;
   selected: Set<string>;
   activeIndex: number;
   onActivate: (index: number) => void;
@@ -26,7 +29,7 @@ export function formatDate(iso: string) {
 }
 
 export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
-  { commits, selected, activeIndex, onActivate, onToggle, onSelectAll, onClearSelection },
+  { commits, sessionStatus, selected, activeIndex, onActivate, onToggle, onSelectAll, onClearSelection },
   ref,
 ) {
   const activeRow = useRef<HTMLDivElement>(null);
@@ -134,6 +137,7 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
               </span>
               {c.isMerge && <span className="badge merge">merge</span>}
               {c.alreadyInTarget && <span className="badge applied">in target</span>}
+              {sessionStatus.has(c.hash) && <StatusChip kind={sessionStatus.get(c.hash)!} />}
             </span>
             <span className="author" title={c.authorEmail}>
               {c.authorName}

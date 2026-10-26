@@ -39,7 +39,16 @@ export function CherryPickDialog({ open, commits, branches, source, defaultTarge
 
   useEffect(() => {
     if (!open || edited || !target) return;
-    api.renderBranchName(template, target, tickets).then(setBranch).catch(() => setBranch(""));
+    // Drop late answers so the name pushed always matches the target on screen.
+    let stale = false;
+    setBranch("");
+    api
+      .renderBranchName(template, target, tickets)
+      .then((name) => !stale && setBranch(name))
+      .catch(() => !stale && setBranch(""));
+    return () => {
+      stale = true;
+    };
   }, [open, edited, target, template, tickets]);
 
   const localTarget = target !== "" && !targets.find((b) => b.name === target)?.isRemote;

@@ -7,6 +7,7 @@ interface Props {
   branch: string | null;
   fetching: boolean;
   selectedCount: number;
+  sessionActive: boolean;
   visibleCount: number;
   cherryPickDisabledReason: string | null;
   onOpenRepo: () => void;
@@ -27,7 +28,12 @@ function repoName(root: string) {
 }
 
 export function Toolbar(props: Props) {
-  const { repoRoot, branch, fetching, selectedCount, visibleCount, cherryPickDisabledReason } = props;
+  const { repoRoot, branch, fetching, selectedCount, sessionActive, visibleCount, cherryPickDisabledReason } = props;
+  const cherryPickLabel = sessionActive
+    ? "Session in progress"
+    : selectedCount > 0
+      ? `Cherry-pick ${selectedCount} commit${selectedCount === 1 ? "" : "s"}…`
+      : "Cherry-pick…";
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -87,10 +93,16 @@ export function Toolbar(props: Props) {
         onClick={props.onCherryPick}
         disabled={cherryPickDisabledReason !== null}
         title={cherryPickDisabledReason ?? "Cherry-pick the selected commits (Ctrl+Enter)"}
+        aria-describedby={cherryPickDisabledReason ? "cherry-pick-reason" : undefined}
       >
         <Cherry size={16} />
-        {selectedCount > 0 ? `Cherry-pick ${selectedCount} commit${selectedCount === 1 ? "" : "s"}…` : "Cherry-pick…"}
+        {cherryPickLabel}
       </button>
+      {cherryPickDisabledReason && (
+        <span id="cherry-pick-reason" className="sr-only">
+          {cherryPickDisabledReason}
+        </span>
+      )}
       <button className="btn ghost icon-btn" onClick={props.onSettings} aria-label="Settings" title="Settings">
         <Settings size={16} />
       </button>

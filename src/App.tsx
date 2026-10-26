@@ -8,7 +8,7 @@ import { Sidebar } from "./components/Sidebar";
 import { FilterBar } from "./components/FilterBar";
 import { CommitList, isSelectable } from "./components/CommitList";
 import { CommitDetail } from "./components/CommitDetail";
-import { SessionPanel } from "./components/SessionPanel";
+import { Display, displayOf, SessionPanel } from "./components/SessionPanel";
 import { CherryPickDialog } from "./components/CherryPickDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { StartScreen } from "./components/StartScreen";
@@ -122,6 +122,20 @@ export default function App() {
   const selectAll = () => setSelected(new Map(visible.filter(isSelectable).map((c) => [c.hash, c])));
 
   const sessionActive = session !== null && !isSessionFinished(session);
+
+  const sessionStatus = useMemo(() => {
+    const map = new Map<string, Display>();
+    if (session && sessionActive) session.items.forEach((item, i) => map.set(item.hash, displayOf(item, i, session, sessionBusy)));
+    return map;
+  }, [session, sessionActive, sessionBusy]);
+
+  // When a pick stops, bring the commit that needs attention into view in the history.
+  const stoppedHash = session && (session.state.kind === "conflict" || session.state.kind === "failed") ? session.items[session.current]?.hash : undefined;
+  useEffect(() => {
+    if (!stoppedHash) return;
+    const index = visible.findIndex((c) => c.hash === stoppedHash);
+    if (index >= 0) setActiveIndex(index);
+  }, [stoppedHash, visible]);
   const cherryPickDisabledReason = sessionActive
     ? "Finish or abort the current cherry-pick first"
     : selected.size === 0
@@ -297,6 +311,7 @@ export default function App() {
         branch={source}
         fetching={fetching}
         selectedCount={selected.size}
+        sessionActive={sessionActive}
         visibleCount={visible.length}
         cherryPickDisabledReason={cherryPickDisabledReason}
         onOpenRepo={browse}
@@ -360,6 +375,7 @@ export default function App() {
             <CommitList
               ref={listRef}
               commits={visible}
+              sessionStatus={sessionStatus}
               selected={new Set(selected.keys())}
               activeIndex={safeIndex}
               onActivate={setActiveIndex}
