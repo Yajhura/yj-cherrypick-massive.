@@ -155,6 +155,12 @@ input[type="checkbox"]:disabled { border-color: var(--line); background-color: v
 }
 .toolbar .repo { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; margin-right: 8px; }
 .toolbar .repo b { font-size: 13px; font-weight: 600; }
+.toolbar .repo .repo-name {
+  align-self: flex-start; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; text-align: left; border-radius: 3px;
+}
+.toolbar .repo .repo-name:hover { color: var(--accent); text-decoration: underline; }
+.toolbar .repo .repo-name:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .toolbar .repo small { color: var(--ink-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; }
 .toolbar .spacer { flex: 1; }
 .workspace { display: grid; grid-template-columns: minmax(520px, 1fr) minmax(360px, 38%); min-height: 0; }
@@ -170,7 +176,7 @@ input[type="checkbox"]:disabled { border-color: var(--line); background-color: v
 
 .list { flex: 1; overflow: auto; background: var(--pane); outline: none; }
 .list-head, .row {
-  display: grid; grid-template-columns: 34px minmax(0, 1fr) 140px 76px 124px;
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) 140px 76px 124px 28px;
   align-items: center; gap: 8px; padding: 0 12px;
 }
 .list-head {
@@ -190,6 +196,10 @@ input[type="checkbox"]:disabled { border-color: var(--line); background-color: v
 .row .subject .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .author, .row .date { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-muted); }
 .row.disabled .text { color: var(--ink-muted); }
+/* The row's "view changes" button stays out of the way until the row is pointed at or active. */
+.row .view-btn { width: 26px; height: 26px; opacity: 0; }
+.row:hover .view-btn, .row.active .view-btn, .row .view-btn:focus-visible { opacity: 1; }
+.list-head .clear-selection { margin: 0; cursor: pointer; }
 .badge {
   flex: none; font-size: 11px; line-height: 18px; padding: 0 6px; border-radius: 11px;
   border: 1px solid var(--line); color: var(--ink-muted); background: var(--pane);
@@ -302,9 +312,9 @@ kbd { font: 11px var(--mono); padding: 0 4px; border: 1px solid var(--line); bor
   .workspace { grid-template-columns: minmax(480px, 1fr) minmax(320px, 36%); }
   .filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .filters .wide { grid-column: span 2; }
-  .list-head, .row { grid-template-columns: 30px minmax(0, 1fr) 76px 124px; }
+  .list-head, .row { grid-template-columns: 30px minmax(0, 1fr) 76px 124px 28px; }
   .list-head > :nth-child(3), .row > .author { display: none; }
-  .list.in-session .list-head, .list.in-session .row { grid-template-columns: 30px minmax(0, 1fr) 112px 70px 84px; }
+  .list.in-session .list-head, .list.in-session .row { grid-template-columns: 30px minmax(0, 1fr) 112px 70px 84px 28px; }
   .list.in-session .row .time { display: none; }
   .list.in-session .list-head > :nth-child(3), .list.in-session .row > .author { display: block; }
 }
@@ -343,7 +353,15 @@ aside.detail[hidden] { display: none; }
 /* Branch picker above the filters */
 .filters .row0 { grid-column: 1 / -1; display: flex; align-items: flex-end; gap: 12px; }
 .filters .source-field { width: min(420px, 100%); }
-.filters .load-btn { margin-left: auto; }
+.filters .txt-btn { margin-left: auto; }
+.filters .date-to { display: flex; gap: 4px; align-items: center; }
+.filters .date-to .input { flex: 1; min-width: 0; }
+/* A Branches column: filters stack in two columns. */
+.filters.compact { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 8px; }
+.filters.compact .wide { grid-column: 1 / -1; }
+.filters.compact .row0 { flex-wrap: wrap; gap: 8px; }
+.filters.compact .source-field { width: 100%; }
+.filters.compact .row2 { gap: 4px 12px; }
 .branch-picker .picker-button { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; cursor: pointer; text-align: left; }
 .branch-picker .picker-button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu.branch-menu { width: max(100%, 360px); }
@@ -370,6 +388,9 @@ aside.detail[hidden] { display: none; }
 .cp-target-actions { display: flex; align-items: center; gap: 12px; }
 .cp-target-actions .add-target { margin-left: -8px; }
 .cp-state { min-width: 0; }
+.name-wrap { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.name-field.exists { border-color: var(--warn); }
+.exists-note { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--warn); }
 .cp-state .badge { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
 .cp-bar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--line); font-size: 12px; }
 .cp-bar .spacer { flex: 1; }

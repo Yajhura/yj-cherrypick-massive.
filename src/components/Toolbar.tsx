@@ -9,6 +9,8 @@ interface Props {
   fetching: boolean;
   visibleCount: number;
   onOpenRepo: () => void;
+  /** Shows the repository folder in Windows Explorer. */
+  onRevealRepo: () => void;
   onFetch: () => void;
   onExport: (format: ExportFormat) => void;
   onSettings: () => void;
@@ -46,7 +48,9 @@ export function Toolbar(props: Props) {
   return (
     <header className="toolbar">
       <div className="repo">
-        <b>{repoName(repoRoot)}</b>
+        <button className="repo-name" onClick={props.onRevealRepo} title={t("toolbar.revealTitle", { path: repoRoot })}>
+          {repoName(repoRoot)}
+        </button>
         <small title={repoRoot}>{branch ?? t("toolbar.noBranch")}</small>
       </div>
       <button className="btn" onClick={props.onOpenRepo} title={t("toolbar.openTitle")}>

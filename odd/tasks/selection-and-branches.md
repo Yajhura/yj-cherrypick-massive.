@@ -17,7 +17,7 @@ Branch: feat/cherry-pick-app · Delivery: ask-on-risk · Runners: `cargo test` (
 ## Tasks
 - [x] T1 S5 backend: start on an existing local or remote branch, never delete it, abort restores it; queue validation allows it; `existing_branches` command for the warning · inline · Risk item 1 (branch deletion/reset) → own commit · RED compile failure, GREEN cargo 66/66 (cherry_pick 30, queue 7), npm 30/30 · fix 96da9f8 (RDD reliability blocker: delete warning reworded) · RDD high, granted, approved and acknowledged
 - [x] T2 S4,S9,S10 backend: `{time}`, txt export format, `#` comments in lookup, `reveal_folder` command · inline · RED compile + lookup assertion, GREEN cargo 73/73, npm 30/30, tsc clean
-- [ ] T3 S1-S3,S5-S7,S9,S10 UI on History and Cherry-pick tabs · inline
+- [x] T3 S1-S3,S5-S7,S9,S10 UI on History and Cherry-pick tabs · inline · RED selection.test.ts (module missing), GREEN npm 33/33, tsc clean; useBranchView + BranchPane extracted for T4; E2E pending (run with T4)
 - [ ] T4 S8 Branches tab · inline
 
 ## Log

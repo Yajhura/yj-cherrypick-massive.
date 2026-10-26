@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Cherry, Hash, LoaderCircle, Plus, Trash2, X } from "lucide-react";
+import { ask } from "@tauri-apps/plugin-dialog";
+import { Cherry, FileDown, Hash, LoaderCircle, Plus, Trash2, TriangleAlert, X } from "lucide-react";
 import { api, Branch, Commit, errorMessage } from "../api";
 import { Basket, inEveryTarget, orderByDate, suggestTarget } from "../basket";
 import { BranchPicker } from "./BranchPicker";
@@ -17,6 +18,8 @@ interface Props {
   error: string | null;
   onAdd: (commits: Commit[]) => number;
   onRemove: (hashes: string[]) => void;
+  /** Saves the commits to apply as a txt for "Add by hash". */
+  onExportTxt: () => void;
   onStart: (targets: { target: string; branch: string }[]) => void;
 }
 
@@ -38,7 +41,7 @@ function newRow(target: string): TargetRow {
 const shortName = (target: string) => target.replace(/^[^/]+\//, "");
 
 /** The Cherry-pick tab before a session starts: commits to apply, target and new branch. */
-export function CherryPickSetup({ repoRoot, branches, basket, defaultTarget, template, ticketPattern, busy, error, onAdd, onRemove, onStart }: Props) {
+export function CherryPickSetup({ repoRoot, branches, basket, defaultTarget, template, ticketPattern, busy, error, onAdd, onRemove, onExportTxt, onStart }: Props) {
   const { t, te } = useI18n();
   const [rows, setRows] = useState<TargetRow[]>(() => [
     newRow(defaultTarget && defaultTarget !== basket.source ? defaultTarget : suggestTarget(branches, [], basket.source)),
@@ -49,6 +52,8 @@ export function CherryPickSetup({ repoRoot, branches, basket, defaultTarget, tem
   const [pasted, setPasted] = useState("");
   const [looking, setLooking] = useState(false);
   const [report, setReport] = useState<{ text: string; error?: boolean } | null>(null);
+  // Branch names that already exist: the run adds the commits on top of them.
+  const [existing, setExisting] = useState<Set<string>>(new Set());
 
   const ordered = useMemo(() => orderByDate(basket.commits), [basket.commits]);
   const tickets = useMemo(() => [...new Set(ordered.flatMap((c) => c.tickets))], [ordered]);
@@ -96,6 +101,39 @@ export function CherryPickSetup({ repoRoot, branches, basket, defaultTarget, tem
     };
   }, [repoRoot, targetsKey, hashesKey]);
 
+  // Names are checked once the user stops typing.
+  const namesKey = rows.map((r) => r.branch.trim()).join("\n");
+  useEffect(() => {
+    const names = namesKey.split("\n").filter(Boolean);
+    if (names.length === 0) return setExisting(new Set());
+    let stale = false;
+    const timer = window.setTimeout(() => {
+      api
+        .existingBranches(repoRoot, names)
+        .then((found) => !stale && setExisting(new Set(found)))
+        .catch(() => !stale && setExisting(new Set()));
+    }, 300);
+    return () => {
+      stale = true;
+      window.clearTimeout(timer);
+    };
+  }, [repoRoot, namesKey]);
+
+  const start = async () => {
+    const targets = rows.map((r) => ({ target: r.target, branch: r.branch.trim() }));
+    const reused = targets.filter((r) => existing.has(r.branch)).map((r) => r.branch);
+    if (reused.length > 0) {
+      const confirmed = await ask(t("dialog.existingBody", { list: reused.join("\n") }), {
+        title: t("dialog.existingTitle", { count: reused.length }),
+        kind: "warning",
+        okLabel: t("dialog.existingOk"),
+        cancelLabel: t("common.cancel"),
+      });
+      if (!confirmed) return;
+    }
+    onStart(targets);
+  };
+
   const already = inEveryTarget(found, ordered.map((c) => c.hash), targets);
   const localTarget = rows.some((r) => r.target !== "" && !branches.find((b) => b.name === r.target)?.isRemote);
   const ready = rows.length > 0 && rows.every((r) => r.target && r.branch.trim()) && ordered.length > 0;
@@ -142,13 +180,21 @@ export function CherryPickSetup({ repoRoot, branches, basket, defaultTarget, tem
                 exclude={basket.source}
                 disabled={busy}
               />
-              <input
-                className="input mono name-field"
-                aria-label={`${t("dialog.newBranch")} ${i + 1}`}
-                value={row.branch}
-                disabled={busy}
-                onChange={(e) => update(row.id, { branch: e.target.value, edited: true })}
-              />
+              <div className="name-wrap">
+                <input
+                  className={`input mono name-field${existing.has(row.branch.trim()) ? " exists" : ""}`}
+                  aria-label={`${t("dialog.newBranch")} ${i + 1}`}
+                  aria-describedby={existing.has(row.branch.trim()) ? `exists-${row.id}` : undefined}
+                  value={row.branch}
+                  disabled={busy}
+                  onChange={(e) => update(row.id, { branch: e.target.value, edited: true })}
+                />
+                {existing.has(row.branch.trim()) && (
+                  <span id={`exists-${row.id}`} className="exists-note" title={t("dialog.existsTitle")}>
+                    <TriangleAlert size={13} aria-hidden="true" /> {t("dialog.exists")}
+                  </span>
+                )}
+              </div>
               <button
                 className="btn ghost icon-btn"
                 onClick={() => setRows((all) => all.filter((r) => r.id !== row.id))}
@@ -169,7 +215,7 @@ export function CherryPickSetup({ repoRoot, branches, basket, defaultTarget, tem
         </div>
         <button
           className="btn primary start-btn"
-          onClick={() => onStart(rows.map((r) => ({ target: r.target, branch: r.branch.trim() })))}
+          onClick={start}
           disabled={busy || !ready}
         >
           {busy ? <LoaderCircle size={16} className="spin" /> : <Cherry size={16} />}
@@ -195,6 +241,9 @@ export function CherryPickSetup({ repoRoot, branches, basket, defaultTarget, tem
             <Trash2 size={16} /> {targets.length > 1 ? t("queue.removeInAll", { count: already.length }) : t("basket.removeInTarget", { count: already.length })}
           </button>
         )}
+        <button className="btn" onClick={onExportTxt} disabled={ordered.length === 0} title={t("basket.exportTxtTitle")}>
+          <FileDown size={16} /> {t("filters.exportTxt")}
+        </button>
         <button className="btn" onClick={() => setPasteOpen((o) => !o)} aria-expanded={pasteOpen} disabled={busy}>
           <Hash size={16} /> {t("basket.addHash")}
         </button>

@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ask, open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { Cherry, CircleCheck, Code, History, OctagonAlert, TriangleAlert } from "lucide-react";
-import { api, Author, Branch, Commit, errorMessage, ExportFormat, isSessionFinished, OpenedRepo, Queue, QueueState, Session, Settings } from "./api";
-import { addToBasket, Basket, emptyBasket, isQueueActive, loadIntoBasket, polledSession, progressOf, rangeBetween, targetsDone } from "./basket";
-import { emptyFilters, Filters, useCommitDetail, useCommits } from "./hooks";
+import { api, Branch, Commit, errorMessage, ExportFormat, isSessionFinished, OpenedRepo, Queue, QueueState, Session, Settings } from "./api";
+import { addToBasket, Basket, emptyBasket, isQueueActive, loadIntoBasket, orderByDate, polledSession, progressOf, targetsDone } from "./basket";
+import { useBranchView, useCommitDetail } from "./hooks";
 import { Toolbar } from "./components/Toolbar";
-import { FilterBar } from "./components/FilterBar";
-import { CommitList, isSelectable } from "./components/CommitList";
+import { BranchPane } from "./components/BranchPane";
 import { CommitDetail } from "./components/CommitDetail";
 import { Display, displayOf, SessionPanel } from "./components/SessionPanel";
 import { CherryPickSetup } from "./components/CherryPickSetup";
@@ -74,11 +73,7 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
   const [openError, setOpenError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [source, setSource] = useState<string | null>(null);
-  const [filters, setFilters] = useState<Filters>(emptyFilters);
   const [reloadKey, setReloadKey] = useState(0);
-  const [selected, setSelected] = useState<Map<string, Commit>>(new Map());
-  const [activeIndex, setActiveIndex] = useState(0);
   const [tab, setTab] = useState<Tab>("history");
   const [basket, setBasket] = useState<Basket>(emptyBasket);
   const [startError, setStartError] = useState<string | null>(null);
@@ -113,10 +108,7 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
       const opened = await api.openRepo(path);
       setRepo(opened);
       setFetchError(opened.fetchError);
-      setSource(defaultSource(opened.branches));
-      setFilters(emptyFilters);
-      setSelected(new Map());
-      setActiveIndex(0);
+      history.reset(defaultSource(opened.branches));
       setBasket(emptyBasket);
       setSettings(await api.getSettings());
     } catch (e) {
@@ -150,53 +142,9 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRepo]);
 
-  // Authors of the current branch feed the author filter; a failure only empties it.
-  const [authors, setAuthors] = useState<Author[]>([]);
-  useEffect(() => {
-    if (!repo || !source) return setAuthors([]);
-    let cancelled = false;
-    api
-      .listAuthors(repo.root, source)
-      .then((list) => !cancelled && setAuthors(list))
-      .catch(() => !cancelled && setAuthors([]));
-    return () => {
-      cancelled = true;
-    };
-  }, [repo, source, reloadKey]);
-
-  const { list, loading, error: listError } = useCommits(repo?.root ?? null, source, filters, settings.ticketPattern, reloadKey);
-
-  const visible = useMemo(() => {
-    const commits = list?.commits ?? [];
-    return commits.filter((c) => !(filters.hideApplied && c.alreadyInTarget) && !(filters.hideMerges && c.isMerge));
-  }, [list, filters.hideApplied, filters.hideMerges]);
-
-  const safeIndex = Math.min(activeIndex, Math.max(0, visible.length - 1));
-  const active = visible[safeIndex] ?? null;
+  const history = useBranchView(repo?.root ?? null, settings.ticketPattern, reloadKey);
+  const { source, filters, selected, visible, safeIndex, active } = history;
   const { detail, loading: detailLoading, error: detailError } = useCommitDetail(repo?.root ?? null, active, visible[safeIndex + 1] ?? null);
-
-  const selectBranch = (name: string) => {
-    setSource(name);
-    setSelected(new Map());
-    setActiveIndex(0);
-  };
-
-  const toggle = (c: Commit) =>
-    setSelected((prev) => {
-      const next = new Map(prev);
-      if (next.has(c.hash)) next.delete(c.hash);
-      else next.set(c.hash, c);
-      return next;
-    });
-
-  const selectRange = (from: number, to: number) =>
-    setSelected((prev) => {
-      const next = new Map(prev);
-      for (const c of rangeBetween(visible, from, to)) next.set(c.hash, c);
-      return next;
-    });
-
-  const selectAll = () => setSelected(new Map(visible.filter(isSelectable).map((c) => [c.hash, c])));
 
   const sessionActive = session !== null && !isSessionFinished(session);
 
@@ -270,7 +218,7 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
       next = result.basket;
     }
     setBasket(next);
-    setSelected(new Map());
+    history.clearSelection();
     setStartError(null);
     setTab("cherry-pick");
   };
@@ -295,21 +243,24 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     if (typeof path === "string") openRepo(path);
   };
 
-  const exportVisible = async (format: ExportFormat) => {
-    const base = (source ?? "history").replace(/[\\/:*?"<>|]+/g, "-");
+  const exportCommits = async (commits: Commit[], format: ExportFormat, name: string) => {
     const path = await saveDialog({
       title: t("app.exportTitle"),
-      defaultPath: `${base}-history.${extensions[format]}`,
+      defaultPath: `${name.replace(/[\\/:*?"<>|]+/g, "-")}.${extensions[format]}`,
       filters: [{ name: format.toUpperCase(), extensions: [extensions[format]] }],
     });
     if (!path) return;
     try {
-      await api.exportCommits(visible, format, path);
-      notify(t("app.exported", { count: visible.length, path }));
+      await api.exportCommits(commits, format, path);
+      notify(t("app.exported", { count: commits.length, path }));
     } catch (e) {
       notify(t("app.exportFailed", { error: fail(e) }), true);
     }
   };
+
+  const exportVisible = (format: ExportFormat) => exportCommits(visible, format, `${source ?? "history"}-history`);
+  /** Selected commits as a txt for "Add by hash", oldest first as the cherry-pick applies them. */
+  const exportHashes = (commits: Commit[], from: string | null) => exportCommits(orderByDate(commits), "txt", `${from ?? "commits"}-commits`);
 
   const applyQueue = (state: QueueState) => {
     setQueue(state.queue);
@@ -502,6 +453,7 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
         fetching={fetching}
         visibleCount={tab === "history" ? visible.length : 0}
         onOpenRepo={browse}
+        onRevealRepo={() => api.revealFolder(repo.root).catch((e) => notify(fail(e), true))}
         onFetch={fetchNow}
         onExport={exportVisible}
         showChanges={tab === "history" ? showChanges : null}
@@ -535,66 +487,27 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
 
       <div id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden={tab !== "history"} className={`workspace${showChanges ? "" : " no-detail"}`}>
         <main className="center">
-          <FilterBar
-            ref={searchRef}
-            filters={filters}
+          <BranchPane
+            ref={listRef}
+            view={history}
             branches={repo.branches}
-            authors={authors}
-            source={source}
-            shown={visible.length}
-            selected={selected.size}
-            loading={loading}
-            onSource={selectBranch}
+            sessionStatus={sessionStatus}
+            searchRef={searchRef}
             onLoad={loadIntoCherryPick}
-            onChange={(patch) => {
-              setFilters((f) => ({ ...f, ...patch, hideApplied: (patch.target ?? f.target) ? (patch.hideApplied ?? f.hideApplied) : false }));
-              setActiveIndex(0);
-            }}
+            onExportTxt={() => exportHashes([...selected.values()], source)}
+            onOpen={() => setTab("code")}
+            notices={
+              fetchError && (
+                <div className="notice warn" role="status">
+                  <TriangleAlert size={16} />
+                  <span className="grow">{t("app.fetchFailed", { error: fetchError })}</span>
+                  <button className="btn ghost" onClick={fetchNow}>
+                    {t("common.retry")}
+                  </button>
+                </div>
+              )
+            }
           />
-          {fetchError && (
-            <div className="notice warn" role="status">
-              <TriangleAlert size={16} />
-              <span className="grow">{t("app.fetchFailed", { error: fetchError })}</span>
-              <button className="btn ghost" onClick={fetchNow}>
-                {t("common.retry")}
-              </button>
-            </div>
-          )}
-          {listError && (
-            <div className="notice error" role="alert">
-              <TriangleAlert size={16} />
-              <span className="grow">{listError}</span>
-            </div>
-          )}
-          {list?.truncated && (
-            <div className="notice warn" role="status">
-              <TriangleAlert size={16} />
-              <span className="grow">{t("app.truncated")}</span>
-            </div>
-          )}
-          {!loading && !listError && visible.length === 0 ? (
-            <div className="placeholder">
-              <h2>{t("app.noMatchTitle")}</h2>
-              <p>{filters.target ? t("app.noMatchTarget", { source: source ?? "", target: filters.target }) : t("app.noMatchBody")}</p>
-              <button className="btn" onClick={() => setFilters(emptyFilters)}>
-                {t("app.clearFilters")}
-              </button>
-            </div>
-          ) : (
-            <CommitList
-              ref={listRef}
-              commits={visible}
-              sessionStatus={sessionStatus}
-              selected={new Set(selected.keys())}
-              activeIndex={safeIndex}
-              onActivate={setActiveIndex}
-              onToggle={toggle}
-              onSelectRange={selectRange}
-              onOpen={() => setTab("code")}
-              onSelectAll={selectAll}
-              onClearSelection={() => setSelected(new Map())}
-            />
-          )}
         </main>
         <aside className="detail" aria-label={t("detail.label")} hidden={!showChanges}>
           <CommitDetail commit={active} stat={detail?.stat ?? null} diff={detail?.diff ?? null} loading={detailLoading} error={detailError} onViewCode={() => setTab("code")} />
@@ -646,6 +559,7 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
               return repeated;
             }}
             onRemove={(hashes) => setBasket((b) => ({ ...b, commits: b.commits.filter((c) => !hashes.includes(c.hash)) }))}
+            onExportTxt={() => exportHashes(basket.commits, basket.source)}
             onStart={startCherryPick}
           />
         )}
@@ -657,8 +571,8 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
           active={tab === "code"}
           hasPrev={safeIndex > 0}
           hasNext={safeIndex < visible.length - 1}
-          onPrev={() => setActiveIndex(Math.max(0, safeIndex - 1))}
-          onNext={() => setActiveIndex(Math.min(visible.length - 1, safeIndex + 1))}
+          onPrev={() => history.setActiveIndex(Math.max(0, safeIndex - 1))}
+          onNext={() => history.setActiveIndex(Math.min(visible.length - 1, safeIndex + 1))}
           notify={notify}
         />
       </div>

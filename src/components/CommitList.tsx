@@ -1,5 +1,7 @@
-import { forwardRef, KeyboardEvent, useEffect, useRef } from "react";
+import { forwardRef, KeyboardEvent, MouseEvent, useEffect, useRef } from "react";
+import { Code } from "lucide-react";
 import { Commit } from "../api";
+import { clickAction } from "../selection";
 import { Display, StatusChip } from "./SessionPanel";
 import { useI18n } from "../i18n";
 
@@ -14,8 +16,8 @@ interface Props {
   /** Selects every selectable commit between two rows, both included (Shift+click). */
   onSelectRange: (from: number, to: number) => void;
   onSelectAll: () => void;
-  /** Opens the active commit in the Code tab (Enter). */
-  onOpen: () => void;
+  /** Opens a commit in the Code tab: Enter on the active row or the row's button. */
+  onOpen: (index: number) => void;
   onClearSelection: () => void;
 }
 
@@ -39,7 +41,7 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
 ) {
   const { t } = useI18n();
   const activeRow = useRef<HTMLDivElement>(null);
-  // Row of the last plain toggle: Shift+click selects from here.
+  // Row of the last toggle: Shift+click selects from here.
   const anchor = useRef<number | null>(null);
 
   useEffect(() => {
@@ -96,7 +98,7 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
       case "Enter":
         if (!e.ctrlKey && commits[activeIndex]) {
           e.preventDefault();
-          onOpen();
+          onOpen(activeIndex);
         }
         return;
       case "Escape":
@@ -106,6 +108,12 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
   };
 
   const activeId = commits[activeIndex] ? `commit-${commits[activeIndex].hash}` : undefined;
+
+  const onRowClick = (e: MouseEvent, i: number) => {
+    const action = clickAction(e);
+    if (action === "activate") onActivate(i);
+    else toggleAt(i, action === "range");
+  };
 
   return (
     <div
@@ -118,12 +126,26 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
       tabIndex={0}
       onKeyDown={onKeyDown}
     >
-      <div className="list-head" aria-hidden="true">
+      <div className="list-head" role="presentation">
+        {/* Shown only while something is selected: one click clears the selection. */}
+        <span>
+          {selected.size > 0 && (
+            <input
+              type="checkbox"
+              className="clear-selection"
+              checked
+              tabIndex={-1}
+              aria-label={t("list.clearSelection", { count: selected.size })}
+              title={`${t("list.clearSelection", { count: selected.size })} (Esc)`}
+              onChange={onClearSelection}
+            />
+          )}
+        </span>
+        <span aria-hidden="true">{selected.size > 0 ? t("filters.selected", { count: selected.size }) : t("list.subject")}</span>
+        <span aria-hidden="true">{sessionStatus.size > 0 ? t("list.authorStatus") : t("list.author")}</span>
+        <span aria-hidden="true">{t("list.hash")}</span>
+        <span aria-hidden="true">{t("list.date")}</span>
         <span />
-        <span>{t("list.subject")}</span>
-        <span>{sessionStatus.size > 0 ? t("list.authorStatus") : t("list.author")}</span>
-        <span>{t("list.hash")}</span>
-        <span>{t("list.date")}</span>
       </div>
       {commits.map((c, i) => {
         const selectable = isSelectable(c);
@@ -138,11 +160,10 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
             aria-selected={isSelected}
             aria-disabled={!selectable}
             className={`row${i === activeIndex ? " active" : ""}${selectable ? "" : " disabled"}`}
-            onClick={(e) => (e.shiftKey ? toggleAt(i, true) : onActivate(i))}
-            onDoubleClick={() => {
-              onActivate(i);
-              onOpen();
-            }}
+            // Keeps Shift and Ctrl clicks from selecting text.
+            onMouseDown={(e) => (e.shiftKey || e.ctrlKey) && e.preventDefault()}
+            onClick={(e) => onRowClick(e, i)}
+            onDoubleClick={(e) => !e.shiftKey && !e.ctrlKey && !e.metaKey && toggleAt(i, false)}
           >
             <input
               type="checkbox"
@@ -155,6 +176,7 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
                 e.stopPropagation();
                 toggleAt(i, e.shiftKey);
               }}
+              onDoubleClick={(e) => e.stopPropagation()}
               onChange={() => undefined}
             />
             <span className="subject">
@@ -179,6 +201,20 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
               {formatDate(c.date).slice(0, 10)}
               <span className="time">{formatDate(c.date).slice(10)}</span>
             </span>
+            <button
+              className="btn ghost icon-btn view-btn"
+              tabIndex={-1}
+              aria-label={t("list.viewChanges", { hash: c.shortHash })}
+              title={`${t("list.viewChanges", { hash: c.shortHash })} (Enter)`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onActivate(i);
+                onOpen(i);
+              }}
+              onDoubleClick={(e) => e.stopPropagation()}
+            >
+              <Code size={14} />
+            </button>
           </div>
         );
       })}

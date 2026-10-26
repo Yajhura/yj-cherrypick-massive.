@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { api, Commit, CommitDiff, CommitList, CommitQuery, errorMessage, FileStat } from "./api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { api, Author, Commit, CommitDiff, CommitList, CommitQuery, errorMessage, FileStat } from "./api";
+import { rangeBetween } from "./basket";
+import { isSelectable } from "./components/CommitList";
+import { onlyToday } from "./selection";
 
 export interface Filters {
   target: string;
@@ -120,3 +123,95 @@ export function useCommitDetail(repo: string | null, active: Commit | null, next
 
   return { detail, loading, error };
 }
+
+/**
+ * One branch's commit list with its own filters, selection and active row. The History
+ * tab and each column of the Branches tab are one of these.
+ */
+export function useBranchView(repo: string | null, ticketPattern: string, reloadKey: number) {
+  const [source, setSource] = useState<string | null>(null);
+  const [filters, setFilters] = useState<Filters>(() => onlyToday(emptyFilters, new Date()));
+  const [selected, setSelected] = useState<Map<string, Commit>>(new Map());
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const [authors, setAuthors] = useState<Author[]>([]);
+  useEffect(() => {
+    if (!repo || !source) return setAuthors([]);
+    let cancelled = false;
+    api
+      .listAuthors(repo, source)
+      .then((list) => !cancelled && setAuthors(list))
+      .catch(() => !cancelled && setAuthors([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [repo, source, reloadKey]);
+
+  const { list, loading, error } = useCommits(repo, source, filters, ticketPattern, reloadKey);
+  const visible = useMemo(() => {
+    const commits = list?.commits ?? [];
+    return commits.filter((c) => !(filters.hideApplied && c.alreadyInTarget) && !(filters.hideMerges && c.isMerge));
+  }, [list, filters.hideApplied, filters.hideMerges]);
+
+  const safeIndex = Math.min(activeIndex, Math.max(0, visible.length - 1));
+
+  /** A new repo starts from scratch, on today's commits. */
+  const reset = (branch: string | null) => {
+    setSource(branch);
+    setFilters(onlyToday(emptyFilters, new Date()));
+    setSelected(new Map());
+    setActiveIndex(0);
+  };
+
+  /** Another branch keeps the filters but starts again on today. */
+  const selectBranch = (name: string) => {
+    setSource(name);
+    setFilters((f) => onlyToday(f, new Date()));
+    setSelected(new Map());
+    setActiveIndex(0);
+  };
+
+  const changeFilters = (patch: Partial<Filters>) => {
+    setFilters((f) => ({ ...f, ...patch, hideApplied: (patch.target ?? f.target) ? (patch.hideApplied ?? f.hideApplied) : false }));
+    setActiveIndex(0);
+  };
+
+  const toggle = (c: Commit) =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(c.hash)) next.delete(c.hash);
+      else next.set(c.hash, c);
+      return next;
+    });
+
+  const selectRange = (from: number, to: number) =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      for (const c of rangeBetween(visible, from, to)) next.set(c.hash, c);
+      return next;
+    });
+
+  return {
+    source,
+    filters,
+    authors,
+    list,
+    loading,
+    error,
+    visible,
+    selected,
+    safeIndex,
+    active: visible[safeIndex] ?? null,
+    reset,
+    selectBranch,
+    changeFilters,
+    clearFilters: () => setFilters(emptyFilters),
+    setActiveIndex,
+    toggle,
+    selectRange,
+    selectAll: () => setSelected(new Map(visible.filter(isSelectable).map((c) => [c.hash, c]))),
+    clearSelection: () => setSelected(new Map()),
+  };
+}
+
+export type BranchView = ReturnType<typeof useBranchView>;

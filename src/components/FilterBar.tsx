@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { ArrowRightToLine } from "lucide-react";
+import { ArrowRightToLine, FileDown, X } from "lucide-react";
 import { Author, Branch } from "../api";
 import { AuthorPicker } from "./AuthorPicker";
 import { BranchPicker } from "./BranchPicker";
@@ -17,21 +17,34 @@ interface Props {
   onChange: (patch: Partial<Filters>) => void;
   onSource: (name: string) => void;
   onLoad: () => void;
+  /** Saves the selected commits as a txt for "Add by hash". */
+  onExportTxt: () => void;
+  /** Narrow layout for a column of the Branches tab. */
+  compact?: boolean;
 }
 
 export const FilterBar = forwardRef<HTMLInputElement, Props>(function FilterBar(
-  { filters, branches, authors, source, shown, selected, loading, onChange, onSource, onLoad },
+  { filters, branches, authors, source, shown, selected, loading, onChange, onSource, onLoad, onExportTxt, compact },
   searchRef,
 ) {
   const { t } = useI18n();
   const targets = [...branches.filter((b) => b.isRemote), ...branches.filter((b) => !b.isRemote)].filter((b) => b.name !== source);
   return (
-    <div className="filters" role="search" aria-label={t("filters.label")}>
+    <div className={`filters${compact ? " compact" : ""}`} role="search" aria-label={t("filters.label")}>
       <div className="row0">
         <div className="field source-field">
           <span>{t("filters.branch")}</span>
           <BranchPicker branches={branches} value={source} onChange={onSource} label={t("filters.branch")} />
         </div>
+        <button
+          className="btn txt-btn"
+          onClick={onExportTxt}
+          disabled={selected === 0}
+          title={selected === 0 ? t("reason.noSelection") : t("filters.exportTxtTitle")}
+        >
+          <FileDown size={16} />
+          {compact ? "txt" : t("filters.exportTxt")}
+        </button>
         <button
           className="btn primary load-btn"
           onClick={onLoad}
@@ -39,7 +52,7 @@ export const FilterBar = forwardRef<HTMLInputElement, Props>(function FilterBar(
           title={selected === 0 ? t("reason.noSelection") : `${t("filters.loadTitle")} (Ctrl+Enter)`}
         >
           <ArrowRightToLine size={16} />
-          {selected === 0 ? t("filters.load") : t("filters.loadN", { count: selected })}
+          {compact ? (selected === 0 ? t("filters.loadShort") : t("filters.loadShortN", { count: selected })) : selected === 0 ? t("filters.load") : t("filters.loadN", { count: selected })}
         </button>
       </div>
       <label className="field wide">
@@ -60,10 +73,24 @@ export const FilterBar = forwardRef<HTMLInputElement, Props>(function FilterBar(
         <span>{t("filters.from")}</span>
         <input className="input" type="date" value={filters.since} max={filters.until || undefined} onChange={(e) => onChange({ since: e.target.value })} />
       </label>
-      <label className="field">
+      <div className="field">
         <span>{t("filters.to")}</span>
-        <input className="input" type="date" value={filters.until} min={filters.since || undefined} onChange={(e) => onChange({ until: e.target.value })} />
-      </label>
+        <div className="date-to">
+          <input
+            className="input"
+            type="date"
+            aria-label={t("filters.to")}
+            value={filters.until}
+            min={filters.since || undefined}
+            onChange={(e) => onChange({ until: e.target.value })}
+          />
+          {(filters.since || filters.until) && (
+            <button className="btn ghost icon-btn" onClick={() => onChange({ since: "", until: "" })} aria-label={t("filters.clearDates")} title={t("filters.clearDates")}>
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      </div>
       <div className="row2">
         <label className="check">
           {t("filters.missingFrom")}
