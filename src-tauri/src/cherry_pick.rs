@@ -63,6 +63,10 @@ pub struct Session {
     /// the user finished or aborted that pick outside the app (e.g. from the IDE).
     #[serde(default)]
     pub pick_base: Option<String>,
+    /// Tip of a local branch that already existed before the run. Such a branch is never
+    /// deleted: abort moves it back here, and nothing applied leaves it as it was.
+    #[serde(default)]
+    pub restore_to: Option<String>,
 }
 
 impl Session {
@@ -218,19 +222,49 @@ fn worktree_dir(root: &Path, branch: &str) -> PathBuf {
     root.join(format!("{name}-{}", chrono::Local::now().format("%Y%m%d%H%M%S")))
 }
 
-/// The branch a session will create: a valid name that exists neither locally nor on a remote.
-pub fn check_new_branch(git: &Git, branch: &str) -> AppResult<()> {
+/// Where the session's branch comes from: created from the target, an existing local
+/// branch, or a remote branch with no local copy yet.
+enum BranchBase {
+    New,
+    Local(String),
+    Remote(String),
+}
+
+fn local_tip(git: &Git, branch: &str) -> AppResult<Option<String>> {
+    let out = git.output(&["rev-parse", "--verify", "--quiet", &format!("refs/heads/{branch}")])?;
+    Ok(out.success.then(|| out.stdout.trim().to_string()))
+}
+
+/// Remote-tracking branches named `<remote>/<branch>`, `origin` first.
+fn remote_copies(git: &Git, branch: &str) -> AppResult<Vec<String>> {
+    let mut found: Vec<String> = git
+        .run(&["branch", "-r", "--list", "--format=%(refname:short)", &format!("*/{branch}")])?
+        .lines()
+        .map(|l| l.trim().to_string())
+        .filter(|l| l.split_once('/').is_some_and(|(_, rest)| rest == branch))
+        .collect();
+    found.sort_by_key(|r| !r.starts_with("origin/"));
+    Ok(found)
+}
+
+fn branch_base(git: &Git, branch: &str) -> AppResult<BranchBase> {
     validate_branch_name(git, branch)?;
-    let local_ref = format!("refs/heads/{branch}");
-    if git.output(&["rev-parse", "--verify", "--quiet", &local_ref])?.success {
-        return Err(AppError::Invalid(format!("branch '{branch}' already exists")));
+    if let Some(tip) = local_tip(git, branch)? {
+        return Ok(BranchBase::Local(tip));
     }
-    // Caught here, a name clash would otherwise only fail at push time after all the work.
-    let remote_pattern = format!("*/{branch}");
-    if !git.run(&["branch", "-r", "--list", &remote_pattern])?.trim().is_empty() {
-        return Err(AppError::Invalid(format!("branch '{branch}' already exists on the remote")));
+    Ok(remote_copies(git, branch)?.into_iter().next().map_or(BranchBase::New, BranchBase::Remote))
+}
+
+/// The names in `branches` that already exist locally or on a remote, in input order.
+/// The UI warns about them: the commits will go on top of the existing branch.
+pub fn existing_branches(git: &Git, branches: &[String]) -> AppResult<Vec<String>> {
+    let mut found = Vec::new();
+    for b in branches {
+        if local_tip(git, b)?.is_some() || !remote_copies(git, b)?.is_empty() {
+            found.push(b.clone());
+        }
     }
-    Ok(())
+    Ok(found)
 }
 
 pub fn start(store: &SessionStore, worktrees_root: &Path, req: StartRequest) -> AppResult<Session> {
@@ -242,7 +276,7 @@ pub fn start(store: &SessionStore, worktrees_root: &Path, req: StartRequest) -> 
     }
     let git = Git::new(&req.repo);
     repo::fetch(&git)?;
-    check_new_branch(&git, &req.branch)?;
+    let base = branch_base(&git, &req.branch)?;
 
     let hashes = resolve_hashes(&git, &req.hashes)?;
     let ordered = chronological(&git, &hashes, &req.target)?;
@@ -250,11 +284,18 @@ pub fn start(store: &SessionStore, worktrees_root: &Path, req: StartRequest) -> 
     let worktree = worktree_dir(worktrees_root, &req.branch);
     fs::create_dir_all(worktrees_root)?;
     let wt = worktree.to_string_lossy().into_owned();
-    if let Err(e) = git.run(&["worktree", "add", "-b", &req.branch, &wt, &req.target]) {
-        // git creates the branch before checking out, so a failed checkout would block a retry.
+    let added = match &base {
+        BranchBase::New => git.run(&["worktree", "add", "-b", &req.branch, &wt, &req.target]),
+        BranchBase::Remote(remote) => git.run(&["worktree", "add", "-b", &req.branch, &wt, remote]),
+        BranchBase::Local(_) => git.run(&["worktree", "add", &wt, &req.branch]),
+    };
+    if let Err(e) = added {
         let _ = fs::remove_dir_all(&worktree);
         let _ = git.output(&["worktree", "prune"]);
-        let _ = git.output(&["branch", "-D", &req.branch]);
+        // git creates the branch before checking out, so a failed checkout would block a retry.
+        if !matches!(base, BranchBase::Local(_)) {
+            let _ = git.output(&["branch", "-D", &req.branch]);
+        }
         return Err(e);
     }
 
@@ -268,6 +309,10 @@ pub fn start(store: &SessionStore, worktrees_root: &Path, req: StartRequest) -> 
         state: SessionState::Running,
         warnings: Vec::new(),
         pick_base: None,
+        restore_to: match base {
+            BranchBase::Local(tip) => Some(tip),
+            _ => None,
+        },
     };
     store.save(&session)?;
     advance(store, &mut session)?;
@@ -332,7 +377,9 @@ fn finish(store: &SessionStore, session: &mut Session) -> AppResult<()> {
     let applied = session.items.iter().any(|i| i.status == PickStatus::Applied);
     if !applied {
         remove_worktree(session);
-        let _ = Git::new(&session.repo).run(&["branch", "-D", &session.branch]);
+        if session.restore_to.is_none() {
+            let _ = Git::new(&session.repo).run(&["branch", "-D", &session.branch]);
+        }
         session.state = SessionState::Completed { pushed: false, push_error: None, nothing_applied: true };
         return store.save(session);
     }
@@ -521,7 +568,8 @@ pub fn retry_push(store: &SessionStore) -> AppResult<Session> {
     Ok(session)
 }
 
-/// Stops the session, removes the worktree and deletes the new local branch.
+/// Stops the session, removes the worktree and deletes the new local branch, or moves
+/// a branch that existed before the run back to where it was.
 pub fn abort(store: &SessionStore) -> AppResult<Session> {
     let mut session = store.active()?;
     let wt = session.worktree_git();
@@ -529,8 +577,13 @@ pub fn abort(store: &SessionStore) -> AppResult<Session> {
         let _ = wt.run(&["cherry-pick", "--abort"]);
     }
     remove_worktree(&mut session);
-    if let Err(e) = Git::new(&session.repo).run(&["branch", "-D", &session.branch]) {
-        session.warnings.push(format!("could not delete branch {}: {e}", session.branch));
+    let repo = Git::new(&session.repo);
+    let undone = match &session.restore_to {
+        Some(tip) => repo.run(&["branch", "-f", &session.branch, tip]),
+        None => repo.run(&["branch", "-D", &session.branch]),
+    };
+    if let Err(e) = undone {
+        session.warnings.push(format!("could not restore branch {}: {e}", session.branch));
     }
     session.state = SessionState::Aborted;
     store.clear()?;

@@ -121,14 +121,12 @@ fn a_target_that_already_has_everything_is_nothing_to_push() {
 fn every_target_and_name_is_checked_before_anything_runs() {
     let Setup { f, add_b, .. } = setup();
     let (qs, ss) = stores(&f);
-    f.git(&["push", "-q", "origin", "develop:refs/heads/cp/taken"]);
-    f.git(&["fetch", "-q", "origin"]);
     let run = |targets: &[(&str, &str)]| start_queue(&qs, &ss, &f.worktrees(), request(&f, &[&add_b], targets)).unwrap_err().to_string();
 
     assert_eq!(run(&[]), "choose at least one target branch");
     assert_eq!(run(&[("origin/release/1", "cp/x"), ("origin/release/1", "cp/y")]), "target 'origin/release/1' is listed twice");
     assert_eq!(run(&[("origin/release/1", "cp/x"), ("origin/release/2", "cp/x")]), "branch 'cp/x' is used for two targets");
-    assert_eq!(run(&[("origin/release/1", "cp/ok"), ("origin/release/2", "cp/taken")]), "branch 'cp/taken' already exists on the remote");
+    assert_eq!(run(&[("origin/release/1", "cp/ok"), ("origin/release/2", "bad..name")]), "invalid branch name: 'bad..name'");
     assert_eq!(run(&[("origin/nope", "cp/ok")]), "unknown target branch: origin/nope");
 
     assert!(current_queue(&qs, &ss).unwrap().is_none(), "nothing saved");
@@ -149,4 +147,17 @@ fn a_running_queue_blocks_a_new_one_and_can_only_be_dismissed_when_done() {
     advance_queue(&qs, &ss, &f.worktrees()).unwrap();
     dismiss_queue(&qs).unwrap();
     assert!(current_queue(&qs, &ss).unwrap().is_none());
+}
+
+#[test]
+fn a_target_whose_branch_already_exists_gets_the_commits_on_top() {
+    let Setup { f, add_b, .. } = setup();
+    let (qs, ss) = stores(&f);
+    f.git(&["push", "-q", "origin", "origin/release/2:refs/heads/cp/taken"]);
+    f.git(&["fetch", "-q", "origin"]);
+
+    let state = start_queue(&qs, &ss, &f.worktrees(), request(&f, &[&add_b], &[("origin/release/2", "cp/taken")])).unwrap();
+
+    assert_eq!(outcomes(&state.queue), [Outcome::Pushed]);
+    assert_eq!(f.remote_log("cp/taken")[0], "JIRA-2 add b");
 }

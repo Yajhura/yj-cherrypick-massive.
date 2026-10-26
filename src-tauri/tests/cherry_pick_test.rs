@@ -4,9 +4,10 @@ use std::fs;
 use std::path::Path;
 
 use cherrypick_masive_lib::cherry_pick::{
-    abort, continue_pick, dismiss, retry_push, skip, start, PickStatus, Session, SessionState, SessionStore,
+    abort, continue_pick, dismiss, existing_branches, retry_push, skip, start, PickStatus, Session, SessionState, SessionStore,
     StartRequest,
 };
+use cherrypick_masive_lib::git::Git;
 use common::Fixture;
 
 const DATE: &str = "2026-02-01T10:00:00";
@@ -195,7 +196,7 @@ fn abort_removes_worktree_branch_and_session() {
 }
 
 #[test]
-fn rejects_merge_commits_existing_branch_and_concurrent_session() {
+fn rejects_merge_commits_and_concurrent_session() {
     let (f, conflicting, clean) = conflict_setup();
     let store = store(&f);
     f.checkout("develop");
@@ -205,10 +206,10 @@ fn rejects_merge_commits_existing_branch_and_concurrent_session() {
     let err = start(&store, &f.worktrees(), request(&f, &[&merge])).unwrap_err();
     assert!(err.to_string().contains("merge commits cannot be cherry-picked"));
 
-    f.git(&["branch", "cherry-pick/release/test", "main"]);
-    let err = start(&store, &f.worktrees(), request(&f, &[&clean])).unwrap_err();
-    assert!(err.to_string().contains("already exists"));
-    f.git(&["branch", "-D", "cherry-pick/release/test"]);
+    let mut bad = request(&f, &[&clean]);
+    bad.branch = "bad..name".into();
+    let err = start(&store, &f.worktrees(), bad).unwrap_err();
+    assert_eq!(err.to_string(), "invalid branch name: 'bad..name'");
 
     start(&store, &f.worktrees(), request(&f, &[&conflicting])).unwrap();
     let mut other = request(&f, &[&clean]);
@@ -363,14 +364,88 @@ fn unreadable_session_file_can_be_dismissed() {
     assert!(store.load().unwrap().is_none());
 }
 
+/// `cherry-pick/release/test` already exists with one commit of its own on top of release.
+fn with_existing_branch(f: &Fixture) -> String {
+    f.new_branch("cherry-pick/release/test", "release");
+    let own = f.commit("own.txt", "own\n", "earlier pick", "Ana", "2026-02-05T10:00:00");
+    f.git(&["push", "-q", "origin", "cherry-pick/release/test"]);
+    // Checked out elsewhere, the branch could not be used by a worktree.
+    f.checkout("develop");
+    own
+}
+
 #[test]
-fn rejects_branch_that_already_exists_on_the_remote() {
+fn an_existing_local_branch_gets_the_commits_on_top() {
     let Setup { f, c1, .. } = setup();
-    f.git(&["push", "-q", "origin", "main:cherry-pick/release/test"]);
+    with_existing_branch(&f);
 
-    let err = start(&store(&f), &f.worktrees(), request(&f, &[&c1])).unwrap_err();
+    let s = start(&store(&f), &f.worktrees(), request(&f, &[&c1])).unwrap();
 
-    assert!(err.to_string().contains("already exists on the remote"), "{err}");
+    assert_pushed(&s);
+    assert_eq!(f.remote_log("cherry-pick/release/test"), ["JIRA-1 add a", "earlier pick", "initial commit"]);
+    assert_eq!(f.git(&["log", "-1", "--format=%s", "cherry-pick/release/test"]), "JIRA-1 add a");
+}
+
+#[test]
+fn a_branch_only_on_the_remote_is_checked_out_from_it() {
+    let Setup { f, c1, .. } = setup();
+    with_existing_branch(&f);
+    f.git(&["branch", "-D", "cherry-pick/release/test"]);
+
+    let s = start(&store(&f), &f.worktrees(), request(&f, &[&c1])).unwrap();
+
+    assert_pushed(&s);
+    assert_eq!(f.remote_log("cherry-pick/release/test"), ["JIRA-1 add a", "earlier pick", "initial commit"]);
+}
+
+#[test]
+fn nothing_applied_keeps_an_existing_branch() {
+    let Setup { f, c1, .. } = setup();
+    let own = with_existing_branch(&f);
+    // The change is already in the existing branch, so the pick comes out empty.
+    f.checkout("cherry-pick/release/test");
+    f.git(&["cherry-pick", &c1]);
+    let tip = f.git(&["rev-parse", "HEAD"]);
+    f.checkout("develop");
+
+    let s = start(&store(&f), &f.worktrees(), request(&f, &[&c1])).unwrap();
+
+    assert_eq!(s.state, SessionState::Completed { pushed: false, push_error: None, nothing_applied: true });
+    assert_eq!(f.git(&["rev-parse", "cherry-pick/release/test"]), tip);
+    assert_ne!(tip, own);
+}
+
+#[test]
+fn abort_moves_an_existing_branch_back_and_keeps_it() {
+    let (f, conflicting, clean) = conflict_setup();
+    let own = with_existing_branch(&f);
+    let store = store(&f);
+    // `early` applies, then `conflicting` stops: the branch has moved when the user aborts.
+    f.checkout("develop");
+    let early = f.commit("e.txt", "e
+", "JIRA-0 add e", "Ana", "2026-02-01T09:00:00");
+    let s = start(&store, &f.worktrees(), request(&f, &[&early, &conflicting, &clean])).unwrap();
+    assert!(matches!(s.state, SessionState::Conflict { .. }), "{:?}", s.state);
+
+    let aborted = abort(&store).unwrap();
+
+    assert!(aborted.warnings.is_empty(), "{:?}", aborted.warnings);
+    assert_eq!(f.git(&["rev-parse", "cherry-pick/release/test"]), own);
+    assert!(!Path::new(&s.worktree).exists());
+}
+
+#[test]
+fn existing_branches_lists_the_names_found_locally_or_on_a_remote() {
+    let Setup { f, .. } = setup();
+    with_existing_branch(&f);
+    f.git(&["push", "-q", "origin", "main:refs/heads/only/remote"]);
+    f.git(&["fetch", "-q", "origin"]);
+    f.git(&["branch", "only/local", "main"]);
+
+    let names = ["cherry-pick/release/test", "only/remote", "only/local", "brand/new"].map(String::from);
+    let found = existing_branches(&Git::new(&f.repo_str()), &names).unwrap();
+
+    assert_eq!(found, ["cherry-pick/release/test", "only/remote", "only/local"]);
 }
 
 #[test]
@@ -522,4 +597,5 @@ fn sessions_saved_before_author_and_date_still_load() {
     fs::write(f.session_file(), old).unwrap();
     let s = store(&f).load().unwrap().unwrap();
     assert_eq!((s.items[0].author.as_str(), s.items[0].date.as_str()), ("", ""));
+    assert_eq!(s.restore_to, None);
 }

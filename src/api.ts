@@ -187,6 +187,7 @@ export const api = {
     invoke<Lookup>("lookup_commits", { repo, text, ticketPattern }),
   commitsInTarget: (repo: string, hashes: string[], target: string) =>
     invoke<string[]>("commits_in_target", { repo, hashes, target }),
+  existingBranches: (repo: string, branches: string[]) => invoke<string[]>("existing_branches", { repo, branches }),
   currentSession: () => invoke<Session | null>("current_session"),
   startQueue: (request: { repo: string; hashes: string[]; targets: { target: string; branch: string }[] }) =>
     invoke<QueueState>("start_queue", { request }),

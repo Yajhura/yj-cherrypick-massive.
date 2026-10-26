@@ -32,12 +32,12 @@ test("auto follows the OS language and falls back to English", () => {
 });
 
 test("known backend errors are translated and git output is kept verbatim", () => {
-  assert.equal(translateError("es", "branch 'cp/x' already exists on the remote"), "La rama 'cp/x' ya existe en el remoto");
+  assert.equal(translateError("es", "invalid branch name: 'a..b'"), "Nombre de rama inválido: 'a..b'");
   assert.equal(translateError("es", "unresolved conflict markers in: a.txt, b.txt"), "Quedan marcadores de conflicto sin resolver en: a.txt, b.txt");
   assert.equal(
     translateError("es", "git push -u origin x failed: fatal: Authentication failed"),
     "git push -u origin x falló: fatal: Authentication failed",
   );
   assert.equal(translateError("es", "something new"), "something new");
-  assert.equal(translateError("en", "branch 'cp/x' already exists"), "branch 'cp/x' already exists");
+  assert.equal(translateError("en", "invalid branch name: 'a..b'"), "invalid branch name: 'a..b'");
 });

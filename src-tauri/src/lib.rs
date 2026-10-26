@@ -162,6 +162,11 @@ async fn commits_in_target(repo: String, hashes: Vec<String>, target: String) ->
     blocking(move || commits::commits_in_target(&Git::new(&repo), &hashes, &target)).await
 }
 
+#[tauri::command]
+async fn existing_branches(repo: String, branches: Vec<String>) -> AppResult<Vec<String>> {
+    blocking(move || cherry_pick::existing_branches(&Git::new(&repo), &branches)).await
+}
+
 /// Reads the saved session without the session lock, so the UI can follow progress
 /// while a long command runs. Saves are write-then-rename, so a read never sees half a file.
 #[tauri::command]
@@ -280,6 +285,7 @@ pub fn run() {
             render_branch_name,
             lookup_commits,
             commits_in_target,
+            existing_branches,
             current_session,
             remove_pending_commits,
             conflict_status,

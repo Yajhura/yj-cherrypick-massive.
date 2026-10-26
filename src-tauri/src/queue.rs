@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::cherry_pick::{self, PickStatus, Session, SessionState, SessionStore, StartRequest};
 use crate::error::{AppError, AppResult};
 use crate::git::Git;
+use crate::naming::validate_branch_name;
 use crate::repo;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -136,7 +137,7 @@ fn validate(git: &Git, req: &QueueRequest) -> AppResult<()> {
         if !git.output(&["rev-parse", "--verify", "--quiet", "--end-of-options", &commit])?.success {
             return Err(AppError::Invalid(format!("unknown target branch: {}", t.target)));
         }
-        cherry_pick::check_new_branch(git, &t.branch)?;
+        validate_branch_name(git, &t.branch)?;
     }
     Ok(())
 }
