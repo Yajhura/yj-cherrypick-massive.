@@ -241,3 +241,134 @@ fn push_failure_is_reported_and_can_be_retried() {
     dismiss(&store).unwrap();
     assert!(store.load().unwrap().is_none());
 }
+
+#[test]
+fn interleaved_merged_history_is_applied_by_date() {
+    let f = Fixture::new();
+    f.new_branch("develop", "main");
+    let d1 = f.commit("d1.txt", "1\n", "d1", "Ana", "2026-02-01T10:00:00");
+    f.new_branch("feature", "develop");
+    let f2 = f.commit("f2.txt", "2\n", "f2", "Ana", "2026-02-02T10:00:00");
+    let f4 = f.commit("f4.txt", "4\n", "f4", "Ana", "2026-02-04T10:00:00");
+    f.checkout("develop");
+    let d3 = f.commit("d3.txt", "3\n", "d3", "Ana", "2026-02-03T10:00:00");
+    let d5 = f.commit("d5.txt", "5\n", "d5", "Ana", "2026-02-05T10:00:00");
+    f.git(&["merge", "-q", "--no-ff", "-m", "merge feature", "feature"]);
+    f.new_branch("release", "main");
+    f.git(&["push", "-q", "origin", "release"]);
+
+    let s = start(&store(&f), &f.worktrees(), request(&f, &[&d5, &f4, &d3, &f2, &d1])).unwrap();
+
+    let subjects: Vec<&str> = s.items.iter().map(|i| i.subject.as_str()).collect();
+    assert_eq!(subjects, ["d1", "f2", "d3", "f4", "d5"]);
+    assert_pushed(&s);
+}
+
+#[test]
+fn short_hashes_are_resolved_and_ordered() {
+    let Setup { f, c1, c2, c3 } = setup();
+    let short = |h: &String| h[..8].to_string();
+    let (s1, s2, s3) = (short(&c1), short(&c2), short(&c3));
+
+    let s = start(&store(&f), &f.worktrees(), request(&f, &[&s3, &s1, &s2])).unwrap();
+
+    let hashes: Vec<&str> = s.items.iter().map(|i| i.hash.as_str()).collect();
+    assert_eq!(hashes, [c1.as_str(), c2.as_str(), c3.as_str()]);
+}
+
+#[test]
+fn pick_finished_in_the_ide_counts_as_applied_on_continue() {
+    let (f, conflicting, clean) = conflict_setup();
+    let store = store(&f);
+    let s = start(&store, &f.worktrees(), request(&f, &[&conflicting, &clean])).unwrap();
+    let wt = Path::new(&s.worktree);
+    fs::write(wt.join("a.txt"), "resolved\n").unwrap();
+    common::git(wt, &["add", "a.txt"]);
+    common::git_env(wt, &["cherry-pick", "--continue"], &[("GIT_EDITOR", "true")]);
+
+    let s = continue_pick(&store).unwrap();
+
+    assert_pushed(&s);
+    assert_eq!(statuses(&s), [PickStatus::Applied, PickStatus::Applied]);
+    assert!(s.items[0].new_hash.is_some());
+}
+
+#[test]
+fn skip_after_pick_finished_in_the_ide_reports_applied() {
+    let (f, conflicting, clean) = conflict_setup();
+    let store = store(&f);
+    let s = start(&store, &f.worktrees(), request(&f, &[&conflicting, &clean])).unwrap();
+    let wt = Path::new(&s.worktree);
+    fs::write(wt.join("a.txt"), "resolved\n").unwrap();
+    common::git(wt, &["add", "a.txt"]);
+    common::git_env(wt, &["cherry-pick", "--continue"], &[("GIT_EDITOR", "true")]);
+
+    let s = skip(&store).unwrap();
+
+    assert_eq!(statuses(&s), [PickStatus::Applied, PickStatus::Applied]);
+}
+
+#[test]
+fn pick_aborted_in_the_ide_cannot_be_continued_but_can_be_skipped() {
+    let (f, conflicting, clean) = conflict_setup();
+    let store = store(&f);
+    let s = start(&store, &f.worktrees(), request(&f, &[&conflicting, &clean])).unwrap();
+    common::git(Path::new(&s.worktree), &["cherry-pick", "--abort"]);
+
+    let err = continue_pick(&store).unwrap_err();
+    assert!(err.to_string().contains("no cherry-pick in progress"), "{err}");
+
+    let s = skip(&store).unwrap();
+    assert_eq!(statuses(&s), [PickStatus::Skipped, PickStatus::Applied]);
+}
+
+#[test]
+fn session_interrupted_while_running_can_be_resumed() {
+    let Setup { f, c1, c2, .. } = setup();
+    let store = store(&f);
+    // Push fails so the worktree stays; then rewind the saved session to simulate a
+    // crash after the first pick was committed but before the session was saved.
+    let hook = f.remote.join("hooks").join("pre-receive");
+    fs::write(&hook, "#!/bin/sh\nexit 1\n").unwrap();
+    let mut s = start(&store, &f.worktrees(), request(&f, &[&c1, &c2])).unwrap();
+    fs::remove_file(&hook).unwrap();
+    let wt = Path::new(&s.worktree).to_path_buf();
+    let first = s.items[0].new_hash.clone().unwrap();
+    common::git(&wt, &["reset", "-q", "--hard", &first]);
+    s.items[0].status = PickStatus::Pending;
+    s.items[0].new_hash = None;
+    s.items[1].status = PickStatus::Pending;
+    s.items[1].new_hash = None;
+    s.current = 0;
+    s.state = SessionState::Running;
+    s.pick_base = Some(common::git(&wt, &["rev-parse", "HEAD~1"]));
+    store.save(&s).unwrap();
+
+    let s = continue_pick(&store).unwrap();
+
+    assert_pushed(&s);
+    assert_eq!(statuses(&s), [PickStatus::Applied, PickStatus::Applied]);
+    assert_eq!(f.remote_log("cherry-pick/release/test"), ["JIRA-2 add b", "JIRA-1 add a", "initial commit"]);
+}
+
+#[test]
+fn unreadable_session_file_can_be_dismissed() {
+    let f = Fixture::new();
+    let store = store(&f);
+    fs::write(f.session_file(), "{ not json").unwrap();
+    assert!(store.load().is_err());
+
+    dismiss(&store).unwrap();
+
+    assert!(store.load().unwrap().is_none());
+}
+
+#[test]
+fn rejects_branch_that_already_exists_on_the_remote() {
+    let Setup { f, c1, .. } = setup();
+    f.git(&["push", "-q", "origin", "main:cherry-pick/release/test"]);
+
+    let err = start(&store(&f), &f.worktrees(), request(&f, &[&c1])).unwrap_err();
+
+    assert!(err.to_string().contains("already exists on the remote"), "{err}");
+}

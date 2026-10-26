@@ -54,6 +54,10 @@ pub struct Session {
     pub current: usize,
     pub state: SessionState,
     pub warnings: Vec<String>,
+    /// Worktree HEAD right before the current pick started. Lets the app tell whether
+    /// the user finished or aborted that pick outside the app (e.g. from the IDE).
+    #[serde(default)]
+    pub pick_base: Option<String>,
 }
 
 impl Session {
@@ -143,9 +147,22 @@ fn unmerged_files(git: &Git) -> AppResult<Vec<String>> {
         .collect())
 }
 
-/// Orders commits oldest first, parents before children.
+/// Expands short hashes or refs to full commit hashes.
+fn resolve_hashes(git: &Git, inputs: &[String]) -> AppResult<Vec<String>> {
+    inputs
+        .iter()
+        .map(|h| {
+            git.run(&["rev-parse", "--verify", "--quiet", &format!("{h}^{{commit}}")])
+                .map(|full| full.trim().to_string())
+                .map_err(|_| AppError::Invalid(format!("unknown commit: {h}")))
+        })
+        .collect()
+}
+
+/// Orders commits oldest first by author date, never placing a child before its
+/// parent, also across merged lines of history.
 fn chronological(git: &Git, hashes: &[String], target: &str) -> AppResult<Vec<String>> {
-    let mut args = vec!["rev-list", "--topo-order", "--reverse"];
+    let mut args = vec!["rev-list", "--author-date-order", "--reverse"];
     args.extend(hashes.iter().map(String::as_str));
     args.extend(["--not", target]);
     let order = git.run(&args)?;
@@ -207,8 +224,14 @@ pub fn start(store: &SessionStore, worktrees_root: &Path, req: StartRequest) -> 
     if git.output(&["rev-parse", "--verify", "--quiet", &local_ref])?.success {
         return Err(AppError::Invalid(format!("branch '{}' already exists", req.branch)));
     }
+    // Caught here, a name clash would otherwise only fail at push time after all the work.
+    let remote_pattern = format!("*/{}", req.branch);
+    if !git.run(&["branch", "-r", "--list", &remote_pattern])?.trim().is_empty() {
+        return Err(AppError::Invalid(format!("branch '{}' already exists on the remote", req.branch)));
+    }
 
-    let ordered = chronological(&git, &req.hashes, &req.target)?;
+    let hashes = resolve_hashes(&git, &req.hashes)?;
+    let ordered = chronological(&git, &hashes, &req.target)?;
     let items = resolve_items(&git, &ordered)?;
     let worktree = worktree_dir(worktrees_root, &req.branch);
     fs::create_dir_all(worktrees_root)?;
@@ -224,6 +247,7 @@ pub fn start(store: &SessionStore, worktrees_root: &Path, req: StartRequest) -> 
         current: 0,
         state: SessionState::Running,
         warnings: Vec::new(),
+        pick_base: None,
     };
     store.save(&session)?;
     advance(store, &mut session)?;
@@ -236,15 +260,15 @@ fn advance(store: &SessionStore, session: &mut Session) -> AppResult<()> {
     while session.current < session.items.len() {
         let hash = session.items[session.current].hash.clone();
         let before = head(&wt)?;
+        session.pick_base = Some(before.clone());
+        store.save(session)?;
         let out = wt.output(&["cherry-pick", "-x", &hash])?;
         if out.success {
             let after = head(&wt)?;
-            let item = &mut session.items[session.current];
             if after == before {
-                item.status = PickStatus::Empty;
+                complete_current(session, PickStatus::Empty, None);
             } else {
-                item.status = PickStatus::Applied;
-                item.new_hash = Some(after);
+                complete_current(session, PickStatus::Applied, Some(after));
             }
         } else {
             let files = unmerged_files(&wt)?;
@@ -254,7 +278,7 @@ fn advance(store: &SessionStore, session: &mut Session) -> AppResult<()> {
             }
             if pick_in_progress(&wt)? && is_clean(&wt)? {
                 wt.run(&["cherry-pick", "--skip"])?;
-                session.items[session.current].status = PickStatus::Empty;
+                complete_current(session, PickStatus::Empty, None);
             } else {
                 session.state = SessionState::Failed {
                     message: format!("{}{}", out.stdout, out.stderr).trim().to_string(),
@@ -262,7 +286,6 @@ fn advance(store: &SessionStore, session: &mut Session) -> AppResult<()> {
                 return store.save(session);
             }
         }
-        session.current += 1;
         store.save(session)?;
     }
     finish(store, session)
@@ -320,13 +343,55 @@ fn has_conflict_markers(path: &Path) -> bool {
     })
 }
 
-/// Continues after the user resolved the conflicted files.
+/// The commit the user created for the current pick outside the app, if any.
+fn committed_outside(session: &Session, wt: &Git) -> AppResult<Option<String>> {
+    let now = head(wt)?;
+    Ok(session.pick_base.as_ref().filter(|base| **base != now).map(|_| now))
+}
+
+/// Marks the current item and moves on to the next one.
+fn complete_current(session: &mut Session, status: PickStatus, new_hash: Option<String>) {
+    let item = &mut session.items[session.current];
+    item.status = status;
+    item.new_hash = new_hash;
+    session.current += 1;
+    session.pick_base = None;
+    session.state = SessionState::Running;
+}
+
+/// Continues after the user resolved the conflicted files, or resumes a session
+/// that was interrupted while running.
 pub fn continue_pick(store: &SessionStore) -> AppResult<Session> {
     let mut session = store.active()?;
-    let SessionState::Conflict { files } = session.state.clone() else {
-        return Err(AppError::Invalid("the session is not waiting on a conflict".into()));
-    };
     let wt = session.worktree_git();
+    match session.state.clone() {
+        SessionState::Running => {
+            if pick_in_progress(&wt)? {
+                // Interrupted mid-pick: start that commit again from its base.
+                wt.run(&["cherry-pick", "--abort"])?;
+            } else if let Some(hash) = committed_outside(&session, &wt)? {
+                complete_current(&mut session, PickStatus::Applied, Some(hash));
+            }
+        }
+        SessionState::Conflict { files } => resolve_conflict(&mut session, &wt, &files)?,
+        _ => return Err(AppError::Invalid("the session is not waiting on a conflict".into())),
+    }
+    store.save(&session)?;
+    advance(store, &mut session)?;
+    Ok(session)
+}
+
+fn resolve_conflict(session: &mut Session, wt: &Git, files: &[String]) -> AppResult<()> {
+    if !pick_in_progress(wt)? {
+        // The user finished (or aborted) the pick in the IDE.
+        let Some(hash) = committed_outside(session, wt)? else {
+            return Err(AppError::Invalid(
+                "no cherry-pick in progress: it was aborted outside the app, use Skip or Abort".into(),
+            ));
+        };
+        complete_current(session, PickStatus::Applied, Some(hash));
+        return Ok(());
+    }
     let pending: Vec<&String> = files
         .iter()
         .filter(|f| has_conflict_markers(&wt.dir().join(f)))
@@ -338,28 +403,22 @@ pub fn continue_pick(store: &SessionStore) -> AppResult<Session> {
     let mut add = vec!["add", "-A", "--"];
     add.extend(files.iter().map(String::as_str));
     wt.run(&add)?;
-    let remaining = unmerged_files(&wt)?;
+    let remaining = unmerged_files(wt)?;
     if !remaining.is_empty() {
         return Err(AppError::Invalid(format!("files still unmerged: {}", remaining.join(", "))));
     }
 
     let out = wt.output(&["cherry-pick", "--continue"])?;
-    let item = &mut session.items[session.current];
     if out.success {
-        item.status = PickStatus::Applied;
-        item.new_hash = Some(head(&wt)?);
-    } else if pick_in_progress(&wt)? && is_clean(&wt)? {
+        complete_current(session, PickStatus::Applied, Some(head(wt)?));
+    } else if pick_in_progress(wt)? && is_clean(wt)? {
         // The resolution matches the target exactly: nothing to commit.
         wt.run(&["cherry-pick", "--skip"])?;
-        item.status = PickStatus::Empty;
+        complete_current(session, PickStatus::Empty, None);
     } else {
         return Err(AppError::Git { args: "cherry-pick --continue".into(), stderr: out.stderr.trim().to_string() });
     }
-    session.current += 1;
-    session.state = SessionState::Running;
-    store.save(&session)?;
-    advance(store, &mut session)?;
-    Ok(session)
+    Ok(())
 }
 
 /// Skips the commit that stopped the session and continues with the rest.
@@ -371,10 +430,13 @@ pub fn skip(store: &SessionStore) -> AppResult<Session> {
     let wt = session.worktree_git();
     if pick_in_progress(&wt)? {
         wt.run(&["cherry-pick", "--skip"])?;
+        complete_current(&mut session, PickStatus::Skipped, None);
+    } else if let Some(hash) = committed_outside(&session, &wt)? {
+        // Already committed in the IDE: it will be pushed, so report it as applied.
+        complete_current(&mut session, PickStatus::Applied, Some(hash));
+    } else {
+        complete_current(&mut session, PickStatus::Skipped, None);
     }
-    session.items[session.current].status = PickStatus::Skipped;
-    session.current += 1;
-    session.state = SessionState::Running;
     store.save(&session)?;
     advance(store, &mut session)?;
     Ok(session)
@@ -405,10 +467,10 @@ pub fn abort(store: &SessionStore) -> AppResult<Session> {
     Ok(session)
 }
 
-/// Forgets a finished session so the UI starts fresh.
+/// Forgets a finished or unreadable session so the UI starts fresh.
 pub fn dismiss(store: &SessionStore) -> AppResult<()> {
-    match store.load()? {
-        Some(s) if !s.is_finished() => Err(AppError::Invalid("the session is still active".into())),
+    match store.load() {
+        Ok(Some(s)) if !s.is_finished() => Err(AppError::Invalid("the session is still active".into())),
         _ => store.clear(),
     }
 }
