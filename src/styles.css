@@ -306,3 +306,11 @@ kbd { font: 11px var(--mono); padding: 0 4px; border: 1px solid var(--line); bor
   .list.in-session .row .time { display: none; }
   .list.in-session .list-head > :nth-child(3), .list.in-session .row > .author { display: block; }
 }
+
+/* Changes pane hidden by the toolbar toggle: the history takes the space. */
+.workspace.no-detail { grid-template-columns: 240px minmax(420px, 1fr); }
+.workspace.no-detail .center { border-right: 0; }
+aside.detail[hidden] { display: none; }
+@media (max-width: 1279px) {
+  .workspace.no-detail { grid-template-columns: 200px minmax(380px, 1fr); }
+}

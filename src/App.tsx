@@ -22,6 +22,23 @@ const defaultSettings: Settings = {
 
 const extensions: Record<ExportFormat, string> = { xlsx: "xlsx", csv: "csv", markdown: "md" };
 
+// Per-machine UI preferences; storage may be unavailable, which only loses the preference.
+function readPref(key: string): string | null {
+  try {
+    return window.localStorage.getItem(`cpm.${key}`);
+  } catch {
+    return null;
+  }
+}
+
+function writePref(key: string, value: string) {
+  try {
+    window.localStorage.setItem(`cpm.${key}`, value);
+  } catch {
+    // Ignore: the preference is a convenience.
+  }
+}
+
 function defaultSource(branches: Branch[]): string | null {
   for (const name of ["origin/develop", "origin/main", "origin/master"]) {
     if (branches.some((b) => b.name === name)) return name;
@@ -46,6 +63,11 @@ export default function App() {
   const [sessionBusy, setSessionBusy] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [rightPane, setRightPane] = useState<"detail" | "session">("detail");
+  const [showChanges, setShowChangesState] = useState(() => readPref("showChanges") !== "false");
+  const setShowChanges = (value: boolean) => {
+    setShowChangesState(value);
+    writePref("showChanges", String(value));
+  };
   const [dialog, setDialog] = useState<"cherry-pick" | "settings" | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null);
@@ -133,6 +155,9 @@ export default function App() {
   const stoppedHash = session && (session.state.kind === "conflict" || session.state.kind === "failed") ? session.items[session.current]?.hash : undefined;
   useEffect(() => {
     if (!stoppedHash) return;
+    // A stopped session needs the user: never leave its panel hidden.
+    setShowChangesState(true);
+    setRightPane("session");
     const index = visible.findIndex((c) => c.hash === stoppedHash);
     if (index >= 0) setActiveIndex(index);
   }, [stoppedHash, visible]);
@@ -187,6 +212,7 @@ export default function App() {
       setSession(s);
       setSelected(new Map());
       setRightPane("session");
+      setShowChanges(true);
       setDialog(null);
     } catch (e) {
       setDialogError(errorMessage(e));
@@ -263,6 +289,9 @@ export default function App() {
       } else if (e.key === "F5") {
         e.preventDefault();
         fetchNow();
+      } else if (e.key === "d" && e.ctrlKey) {
+        e.preventDefault();
+        setShowChanges(!showChanges);
       } else if (e.key === "o" && e.ctrlKey) {
         e.preventDefault();
         browse();
@@ -321,12 +350,14 @@ export default function App() {
           setDialog("cherry-pick");
         }}
         onExport={exportVisible}
+        showChanges={showChanges}
+        onToggleChanges={() => setShowChanges(!showChanges)}
         onSettings={() => {
           setDialogError(null);
           setDialog("settings");
         }}
       />
-      <div className="workspace">
+      <div className={`workspace${showChanges ? "" : " no-detail"}`}>
         <Sidebar branches={repo.branches} current={source} onSelect={selectBranch} />
         <main className="center">
           <FilterBar
@@ -385,7 +416,7 @@ export default function App() {
             />
           )}
         </main>
-        <aside className="detail" aria-label="Details">
+        <aside className="detail" aria-label="Details" hidden={!showChanges}>
           {session && (
             <div className="filters" role="tablist" aria-label="Right pane" style={{ display: "flex", gap: 4, padding: "6px 12px" }}>
               <button role="tab" aria-selected={rightPane === "session"} className={`btn ${rightPane === "session" ? "" : "ghost"}`} onClick={() => setRightPane("session")}>

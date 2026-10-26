@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Cherry, Download, FileSpreadsheet, FileText, FolderOpen, RefreshCw, Settings, Table } from "lucide-react";
+import { ChevronDown, Cherry, Download, FileSpreadsheet, FileText, FolderOpen, PanelRightClose, PanelRightOpen, RefreshCw, Settings, Table } from "lucide-react";
 import { ExportFormat } from "../api";
 
 interface Props {
@@ -15,6 +15,8 @@ interface Props {
   onCherryPick: () => void;
   onExport: (format: ExportFormat) => void;
   onSettings: () => void;
+  showChanges: boolean;
+  onToggleChanges: () => void;
 }
 
 const formats: { format: ExportFormat; label: string; Icon: typeof Table }[] = [
@@ -103,6 +105,15 @@ export function Toolbar(props: Props) {
           {cherryPickDisabledReason}
         </span>
       )}
+      <button
+        className="btn ghost icon-btn"
+        onClick={props.onToggleChanges}
+        aria-pressed={props.showChanges}
+        aria-label={props.showChanges ? "Hide changes panel" : "Show changes panel"}
+        title={`${props.showChanges ? "Hide" : "Show"} changes panel (Ctrl+D)`}
+      >
+        {props.showChanges ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+      </button>
       <button className="btn ghost icon-btn" onClick={props.onSettings} aria-label="Settings" title="Settings">
         <Settings size={16} />
       </button>
