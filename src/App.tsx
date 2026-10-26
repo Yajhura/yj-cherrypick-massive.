@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ask, open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { Cherry, CircleCheck, Code, History, OctagonAlert, TriangleAlert } from "lucide-react";
-import { api, Author, Branch, Commit, errorMessage, ExportFormat, isSessionFinished, OpenedRepo, Session, Settings } from "./api";
-import { addToBasket, Basket, emptyBasket, loadIntoBasket, polledSession, progressOf, rangeBetween } from "./basket";
+import { api, Author, Branch, Commit, errorMessage, ExportFormat, isSessionFinished, OpenedRepo, Queue, QueueState, Session, Settings } from "./api";
+import { addToBasket, Basket, emptyBasket, isQueueActive, loadIntoBasket, polledSession, progressOf, rangeBetween, targetsDone } from "./basket";
 import { emptyFilters, Filters, useCommitDetail, useCommits } from "./hooks";
 import { Toolbar } from "./components/Toolbar";
 import { FilterBar } from "./components/FilterBar";
@@ -10,6 +10,7 @@ import { CommitList, isSelectable } from "./components/CommitList";
 import { CommitDetail } from "./components/CommitDetail";
 import { Display, displayOf, SessionPanel } from "./components/SessionPanel";
 import { CherryPickSetup } from "./components/CherryPickSetup";
+import { QueueStrip, QueueSummary } from "./components/QueueView";
 import { CodeViewer } from "./components/CodeViewer";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { StartScreen } from "./components/StartScreen";
@@ -82,6 +83,8 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
   const [basket, setBasket] = useState<Basket>(emptyBasket);
   const [startError, setStartError] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  // The targets of the current run; every start goes through a queue, even with one target.
+  const [queue, setQueue] = useState<Queue | null>(null);
   const [sessionLoadError, setSessionLoadError] = useState<string | null>(null);
   const [sessionBusy, setSessionBusy] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
@@ -127,16 +130,23 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
   // Restore settings and any session left from a previous run.
   useEffect(() => {
     api.getSettings().then(setSettings).catch(() => undefined);
-    api
-      .currentSession()
-      .then((s) => {
-        if (s && !isSessionFinished(s)) {
-          setSession(s);
-          setTab("cherry-pick");
-          openRepo(s.repo);
-        }
-      })
-      .catch((e) => setSessionLoadError(fail(e)));
+    const restore = async () => {
+      const q = await api.currentQueue();
+      if (q) {
+        setQueue(q.queue);
+        setSession(q.session);
+        setTab("cherry-pick");
+        openRepo(q.queue.repo);
+        return;
+      }
+      const s = await api.currentSession();
+      if (s && !isSessionFinished(s)) {
+        setSession(s);
+        setTab("cherry-pick");
+        openRepo(s.repo);
+      }
+    };
+    restore().catch((e) => setSessionLoadError(fail(e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRepo]);
 
@@ -203,9 +213,15 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     let stopped = false;
     const id = window.setInterval(() => {
       api
-        .currentSession()
-        .then((s) => {
-          const live = polledSession(s);
+        .currentQueue()
+        .then(async (q) => {
+          if (stopped) return;
+          if (q) {
+            setQueue(q.queue);
+            setSession(polledSession(q.session));
+            return;
+          }
+          const live = polledSession(await api.currentSession());
           if (!stopped && live) setSession(live);
         })
         .catch(() => undefined);
@@ -228,9 +244,12 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     if (tab !== "cherry-pick") notify(`${title}: ${hash}`, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopKey]);
-  const doneKey = session?.state.kind === "completed" ? session.branch : undefined;
+  const queueDone = queue !== null && !isQueueActive(queue);
+  const doneKey = queueDone ? queue.entries.map((e) => `${e.branch}:${e.outcome}`).join(",") : session?.state.kind === "completed" ? session.branch : undefined;
   useEffect(() => {
-    if (doneKey) notifyInBackground(t("notify.doneTitle"), doneKey);
+    if (!doneKey) return;
+    const pushed = queue ? queue.entries.filter((e) => e.outcome === "pushed").length : 1;
+    notifyInBackground(t("notify.doneTitle"), queue ? t("queue.notifyBody", { pushed, total: queue.entries.length }) : doneKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doneKey]);
 
@@ -292,20 +311,24 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     }
   };
 
-  const startCherryPick = async (target: string, branch: string) => {
+  const applyQueue = (state: QueueState) => {
+    setQueue(state.queue);
+    setSession(state.session);
+  };
+
+  const startCherryPick = async (targets: { target: string; branch: string }[]) => {
     if (!repo) return;
     setSessionBusy(true);
     setStartError(null);
     setSessionError(null);
     try {
-      const s = await api.startCherryPick({ repo: repo.root, target, branch, hashes: basket.commits.map((c) => c.hash) });
-      setSession(s);
+      applyQueue(await api.startQueue({ repo: repo.root, hashes: basket.commits.map((c) => c.hash), targets }));
       setBasket(emptyBasket);
     } catch (e) {
-      // A failure before the first pick leaves no session; a later one is shown with it.
-      const saved = polledSession(await api.currentSession().catch(() => null));
-      if (saved) {
-        setSession(saved);
+      // A failure before the queue was saved leaves nothing; a later one is shown with the queue.
+      const saved = await api.currentQueue().catch(() => null);
+      if (saved && isQueueActive(saved.queue)) {
+        applyQueue(saved);
         setBasket(emptyBasket);
         setSessionError(fail(e));
       } else {
@@ -316,11 +339,16 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     }
   };
 
+  /** After the running target ends (pushed, nothing to push or aborted), the queue moves on. */
+  const advance = async () => applyQueue(await api.advanceQueue());
+
   const runSession = async (action: () => Promise<Session>) => {
     setSessionBusy(true);
     setSessionError(null);
     try {
-      setSession(await action());
+      const s = await action();
+      if (queue && isSessionFinished(s)) await advance();
+      else setSession(s);
     } catch (e) {
       setSessionError(fail(e));
     } finally {
@@ -328,9 +356,36 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     }
   };
 
+  /** A queue left between targets (the app was closed) continues with its next target. */
+  const resumeQueue = async () => {
+    setSessionBusy(true);
+    setSessionError(null);
+    try {
+      await advance();
+    } catch (e) {
+      setSessionError(fail(e));
+    } finally {
+      setSessionBusy(false);
+    }
+  };
+
+  const dismissQueue = async () => {
+    try {
+      await api.dismissQueue();
+      setQueue(null);
+      setSession(null);
+      setSessionError(null);
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      setSessionError(fail(e));
+    }
+  };
+
   const abort = async () => {
     if (!session) return;
-    const confirmed = await ask(t("app.abortBody", { branch: session.branch }), {
+    const rest = queue ? queue.entries.filter((e) => e.outcome === "pending").length : 0;
+    const body = t("app.abortBody", { branch: session.branch }) + (rest > 0 ? ` ${t("queue.abortNote", { count: rest })}` : "");
+    const confirmed = await ask(body, {
       title: t("app.abortTitle"),
       kind: "warning",
       okLabel: t("common.abort"),
@@ -341,6 +396,7 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     try {
       const s = await api.abortCherryPick();
       setSession(null);
+      if (queue) await advance();
       notify(s.warnings.length ? t("app.abortedWarnings", { warnings: s.warnings.map(te).join("; ") }) : t("app.aborted"));
     } catch (e) {
       setSessionError(fail(e));
@@ -435,7 +491,8 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
 
   // The Cherry-pick tab badge: progress while a session lives, else the commits waiting.
   const progress = session && sessionActive ? progressOf(session) : null;
-  const tabBadge = progress ? `${progress.done}/${progress.total}` : basket.commits.length > 0 ? String(basket.commits.length) : null;
+  const targetsBadge = queue && queue.entries.length > 1 && isQueueActive(queue) ? `${targetsDone(queue).done + 1}/${queue.entries.length} · ` : "";
+  const tabBadge = progress ? `${targetsBadge}${progress.done}/${progress.total}` : basket.commits.length > 0 ? String(basket.commits.length) : null;
 
   return (
     <div className="app">
@@ -545,6 +602,7 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
       </div>
 
       <div id="panel-cherry-pick" role="tabpanel" aria-labelledby="tab-cherry-pick" hidden={tab !== "cherry-pick"} className="cp-panel">
+        {queue && (session || isQueueActive(queue)) && <QueueStrip queue={queue} stopped={!!session && !sessionBusy} />}
         {session ? (
           <SessionPanel
             session={session}
@@ -560,6 +618,18 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
             onDismiss={dismiss}
             onCopy={(text) => navigator.clipboard.writeText(text).then(() => notify(t("app.copied")))}
           />
+        ) : queue && isQueueActive(queue) ? (
+          <div className="placeholder">
+            <h2>{sessionBusy ? t("queue.applying") : t("queue.paused")}</h2>
+            {sessionError && <p className="error-text">{sessionError}</p>}
+            {!sessionBusy && (
+              <button className="btn primary" onClick={resumeQueue}>
+                {t("queue.resume")}
+              </button>
+            )}
+          </div>
+        ) : queue ? (
+          <QueueSummary queue={queue} onDone={dismissQueue} onCopy={(text) => navigator.clipboard.writeText(text).then(() => notify(t("queue.copied")))} />
         ) : (
           <CherryPickSetup
             repoRoot={repo.root}

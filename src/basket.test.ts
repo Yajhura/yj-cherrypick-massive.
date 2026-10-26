@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { type Basket, addToBasket, emptyBasket, loadIntoBasket, orderByDate, polledSession, progressOf, rangeBetween } from "./basket.ts";
-import type { Commit, Session } from "./api.ts";
+import { type Basket, addToBasket, emptyBasket, inEveryTarget, isQueueActive, loadIntoBasket, orderByDate, polledSession, progressOf, rangeBetween, suggestTarget, targetsDone } from "./basket.ts";
+import type { Commit, Queue, QueueEntry, Session } from "./api.ts";
 
 const commit = (hash: string, date: string, isMerge = false): Commit => ({
   hash,
@@ -79,4 +79,32 @@ test("a progress poll only accepts a session that is still running", () => {
   assert.equal(polledSession(done), null);
   assert.equal(polledSession(aborted), null);
   assert.equal(polledSession(null), null);
+});
+
+test("a queue is active while a target is pending or running", () => {
+  const entry = (outcome: QueueEntry["outcome"]) => ({ target: "t", branch: "b", outcome, applied: 0, empty: 0, skipped: 0, error: null });
+  const q = (...o: QueueEntry["outcome"][]) => ({ repo: "r", hashes: [], entries: o.map(entry) }) as Queue;
+  assert.equal(isQueueActive(q("pushed", "running")), true);
+  assert.equal(isQueueActive(q("pushed", "pending")), true);
+  assert.equal(isQueueActive(q("pushed", "aborted", "nothingApplied", "failed")), false);
+  assert.equal(isQueueActive(null), false);
+  assert.deepEqual(targetsDone(q("pushed", "aborted", "running", "pending")), { done: 2, total: 4 });
+});
+
+test("only commits present in every chosen target can be removed as already there", () => {
+  const found = new Map([
+    ["origin/release/1", new Set(["a", "b"])],
+    ["origin/release/2", new Set(["b"])],
+  ]);
+  assert.deepEqual(inEveryTarget(found, ["a", "b", "c"], ["origin/release/1", "origin/release/2"]), ["b"]);
+  assert.deepEqual(inEveryTarget(found, ["a", "b"], ["origin/release/1"]), ["a", "b"]);
+  assert.deepEqual(inEveryTarget(found, ["a"], []), []);
+});
+
+test("the next suggested target skips the source and the targets already chosen", () => {
+  const branches = ["origin/main", "origin/develop", "origin/release/2", "origin/release/1", "develop"].map((name) => ({ name, isRemote: name.startsWith("origin/") }));
+  assert.equal(suggestTarget(branches, [], "origin/develop"), "origin/release/2");
+  assert.equal(suggestTarget(branches, ["origin/release/2"], "origin/develop"), "origin/release/1");
+  assert.equal(suggestTarget(branches, ["origin/release/2", "origin/release/1"], "origin/develop"), "origin/main");
+  assert.equal(suggestTarget(branches, ["origin/release/2", "origin/release/1", "origin/main"], "origin/develop"), "");
 });

@@ -128,6 +128,30 @@ export interface ConflictStatus {
   unresolved: string[];
 }
 
+export type Outcome = "pending" | "running" | "pushed" | "nothingApplied" | "aborted" | "failed";
+
+export interface QueueEntry {
+  target: string;
+  branch: string;
+  outcome: Outcome;
+  applied: number;
+  empty: number;
+  skipped: number;
+  error: string | null;
+}
+
+export interface Queue {
+  repo: string;
+  hashes: string[];
+  entries: QueueEntry[];
+}
+
+export interface QueueState {
+  queue: Queue;
+  /** The session of the target waiting on the user, if any. */
+  session: Session | null;
+}
+
 export type ExportFormat = "csv" | "markdown" | "xlsx";
 
 /** Errors from Rust arrive as plain strings; normalize anything else. */
@@ -164,6 +188,11 @@ export const api = {
   commitsInTarget: (repo: string, hashes: string[], target: string) =>
     invoke<string[]>("commits_in_target", { repo, hashes, target }),
   currentSession: () => invoke<Session | null>("current_session"),
+  startQueue: (request: { repo: string; hashes: string[]; targets: { target: string; branch: string }[] }) =>
+    invoke<QueueState>("start_queue", { request }),
+  advanceQueue: () => invoke<QueueState>("advance_queue"),
+  currentQueue: () => invoke<QueueState | null>("current_queue"),
+  dismissQueue: () => invoke<void>("dismiss_queue"),
   removePendingCommits: (hashes: string[]) => invoke<Session>("remove_pending_commits", { hashes }),
   conflictStatus: () => invoke<ConflictStatus>("conflict_status"),
   startCherryPick: (request: { repo: string; target: string; branch: string; hashes: string[] }) =>

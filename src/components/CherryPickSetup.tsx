@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Cherry, Hash, LoaderCircle, Trash2, X } from "lucide-react";
+import { Cherry, Hash, LoaderCircle, Plus, Trash2, X } from "lucide-react";
 import { api, Branch, Commit, errorMessage } from "../api";
-import { Basket, orderByDate } from "../basket";
+import { Basket, inEveryTarget, orderByDate, suggestTarget } from "../basket";
 import { BranchPicker } from "./BranchPicker";
 import { formatDate } from "./CommitList";
 import { useI18n } from "../i18n";
@@ -17,24 +17,33 @@ interface Props {
   error: string | null;
   onAdd: (commits: Commit[]) => number;
   onRemove: (hashes: string[]) => void;
-  onStart: (target: string, branch: string) => void;
+  onStart: (targets: { target: string; branch: string }[]) => void;
 }
 
-function pickDefaultTarget(branches: Branch[], preferred: string, source: string | null): string {
-  if (preferred && preferred !== source) return preferred;
-  for (const name of ["origin/release", "origin/main", "origin/master"]) {
-    if (name !== source && branches.some((b) => b.name === name)) return name;
-  }
-  return branches.find((b) => b.isRemote && b.name !== source)?.name ?? "";
+interface TargetRow {
+  id: number;
+  target: string;
+  branch: string;
+  /** Once the user types a name, the template no longer overwrites it. */
+  edited: boolean;
 }
+
+let nextRowId = 1;
+
+function newRow(target: string): TargetRow {
+  return { id: nextRowId++, target, branch: "", edited: false };
+}
+
+/** Target names without the remote, for compact labels: origin/release/2 -> release/2. */
+const shortName = (target: string) => target.replace(/^[^/]+\//, "");
 
 /** The Cherry-pick tab before a session starts: commits to apply, target and new branch. */
 export function CherryPickSetup({ repoRoot, branches, basket, defaultTarget, template, ticketPattern, busy, error, onAdd, onRemove, onStart }: Props) {
   const { t, te } = useI18n();
-  const [target, setTarget] = useState(() => pickDefaultTarget(branches, defaultTarget, basket.source));
-  const [branch, setBranch] = useState("");
-  const [edited, setEdited] = useState(false);
-  const [inTarget, setInTarget] = useState<Set<string>>(new Set());
+  const [rows, setRows] = useState<TargetRow[]>(() => [
+    newRow(defaultTarget && defaultTarget !== basket.source ? defaultTarget : suggestTarget(branches, [], basket.source)),
+  ]);
+  const [found, setFound] = useState<Map<string, Set<string>>>(new Map());
   const [checking, setChecking] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasted, setPasted] = useState("");
@@ -45,40 +54,52 @@ export function CherryPickSetup({ repoRoot, branches, basket, defaultTarget, tem
   const tickets = useMemo(() => [...new Set(ordered.flatMap((c) => c.tickets))], [ordered]);
   const hashesKey = ordered.map((c) => c.hash).join(",");
 
-  useEffect(() => {
-    if (!target) setTarget(pickDefaultTarget(branches, defaultTarget, basket.source));
-  }, [branches, defaultTarget, basket.source, target]);
+  const targets = rows.map((r) => r.target).filter(Boolean);
+  const targetsKey = targets.join("\n");
+  const autoKey = rows.map((r) => (r.edited ? "" : r.target)).join("\n");
 
-  // The suggested name follows the target and tickets until the user edits it.
+  const update = (id: number, patch: Partial<TargetRow>) => setRows((all) => all.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+
+  // Suggested names follow each target and the tickets until the user edits them.
   useEffect(() => {
-    if (edited || !target) return;
     let stale = false;
-    api
-      .renderBranchName(template, target, tickets)
-      .then((name) => !stale && setBranch(name))
-      .catch(() => !stale && setBranch(""));
+    for (const row of rows) {
+      if (row.edited || !row.target) continue;
+      api
+        .renderBranchName(template, row.target, tickets)
+        .then((name) => !stale && setRows((all) => all.map((r) => (r.id === row.id && !r.edited ? { ...r, branch: name } : r))))
+        .catch(() => undefined);
+    }
     return () => {
       stale = true;
     };
-  }, [edited, target, template, tickets]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoKey, template, tickets]);
 
-  // Mark what the target already has, for commits of any branch.
+  // Mark what each target already has, for commits of any branch.
   useEffect(() => {
-    if (!target || hashesKey === "") return setInTarget(new Set());
+    if (targetsKey === "" || hashesKey === "") return setFound(new Map());
     let stale = false;
     setChecking(true);
-    api
-      .commitsInTarget(repoRoot, hashesKey.split(","), target)
-      .then((found) => !stale && setInTarget(new Set(found)))
-      .catch(() => !stale && setInTarget(new Set()))
+    Promise.all(
+      targetsKey.split("\n").map((target) =>
+        api
+          .commitsInTarget(repoRoot, hashesKey.split(","), target)
+          .then((hashes) => [target, new Set(hashes)] as const)
+          .catch(() => [target, new Set<string>()] as const),
+      ),
+    )
+      .then((pairs) => !stale && setFound(new Map(pairs)))
       .finally(() => !stale && setChecking(false));
     return () => {
       stale = true;
     };
-  }, [repoRoot, target, hashesKey]);
+  }, [repoRoot, targetsKey, hashesKey]);
 
-  const already = ordered.filter((c) => inTarget.has(c.hash));
-  const localTarget = target !== "" && !branches.find((b) => b.name === target)?.isRemote;
+  const already = inEveryTarget(found, ordered.map((c) => c.hash), targets);
+  const localTarget = rows.some((r) => r.target !== "" && !branches.find((b) => b.name === r.target)?.isRemote);
+  const ready = rows.length > 0 && rows.every((r) => r.target && r.branch.trim()) && ordered.length > 0;
+  const presentIn = (hash: string) => targets.filter((t) => found.get(t)?.has(hash));
 
   const addPasted = async () => {
     setLooking(true);
@@ -105,27 +126,55 @@ export function CherryPickSetup({ repoRoot, branches, basket, defaultTarget, tem
   return (
     <div className="cp-setup">
       <div className="cp-head">
-        <div className="field target-field">
-          <span>{t("dialog.onto")}</span>
-          <BranchPicker branches={branches} value={target || null} onChange={setTarget} label={t("dialog.onto")} exclude={basket.source} disabled={busy} />
+        <div className="cp-targets" role="group" aria-label={t("queue.targets")}>
+          <div className="cp-target cp-target-head" aria-hidden="true">
+            <span>{t("dialog.onto")}</span>
+            <span>{t("dialog.newBranch")}</span>
+            <span />
+          </div>
+          {rows.map((row, i) => (
+            <div key={row.id} className="cp-target target-field">
+              <BranchPicker
+                branches={branches}
+                value={row.target || null}
+                onChange={(target) => update(row.id, { target })}
+                label={`${t("dialog.onto")} ${i + 1}`}
+                exclude={basket.source}
+                disabled={busy}
+              />
+              <input
+                className="input mono name-field"
+                aria-label={`${t("dialog.newBranch")} ${i + 1}`}
+                value={row.branch}
+                disabled={busy}
+                onChange={(e) => update(row.id, { branch: e.target.value, edited: true })}
+              />
+              <button
+                className="btn ghost icon-btn"
+                onClick={() => setRows((all) => all.filter((r) => r.id !== row.id))}
+                disabled={busy || rows.length === 1}
+                aria-label={t("queue.removeTarget", { target: row.target || String(i + 1) })}
+                title={t("queue.removeTarget", { target: row.target || String(i + 1) })}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+          <div className="cp-target-actions">
+            <button className="btn ghost add-target" onClick={() => setRows((all) => [...all, newRow(suggestTarget(branches, all.map((r) => r.target), basket.source))])} disabled={busy}>
+              <Plus size={16} /> {t("queue.addTarget")}
+            </button>
+            <p className="hint">{localTarget ? t("dialog.localHint") : rows.length > 1 ? t("queue.hint") : t("dialog.newBranchHint")}</p>
+          </div>
         </div>
-        <label className="field name-field">
-          <span>{t("dialog.newBranch")}</span>
-          <input
-            className="input mono"
-            value={branch}
-            disabled={busy}
-            onChange={(e) => {
-              setEdited(true);
-              setBranch(e.target.value);
-            }}
-          />
-        </label>
-        <button className="btn primary start-btn" onClick={() => onStart(target, branch.trim())} disabled={busy || !target || !branch.trim() || ordered.length === 0}>
+        <button
+          className="btn primary start-btn"
+          onClick={() => onStart(rows.map((r) => ({ target: r.target, branch: r.branch.trim() })))}
+          disabled={busy || !ready}
+        >
           {busy ? <LoaderCircle size={16} className="spin" /> : <Cherry size={16} />}
-          {busy ? t("dialog.starting") : t("dialog.start")}
+          {busy ? t("dialog.starting") : rows.length > 1 ? t("queue.start", { count: rows.length }) : t("dialog.start")}
         </button>
-        <p className="hint cp-hint">{localTarget ? t("dialog.localHint") : t("dialog.newBranchHint")}</p>
       </div>
 
       {error && (
@@ -142,8 +191,8 @@ export function CherryPickSetup({ repoRoot, branches, basket, defaultTarget, tem
         </span>
         <div className="spacer" />
         {already.length > 0 && (
-          <button className="btn" onClick={() => onRemove(already.map((c) => c.hash))} disabled={busy}>
-            <Trash2 size={16} /> {t("basket.removeInTarget", { count: already.length })}
+          <button className="btn" onClick={() => onRemove(already)} disabled={busy}>
+            <Trash2 size={16} /> {targets.length > 1 ? t("queue.removeInAll", { count: already.length }) : t("basket.removeInTarget", { count: already.length })}
           </button>
         )}
         <button className="btn" onClick={() => setPasteOpen((o) => !o)} aria-expanded={pasteOpen} disabled={busy}>
@@ -221,7 +270,18 @@ export function CherryPickSetup({ repoRoot, branches, basket, defaultTarget, tem
                 {c.authorName}
               </span>
               <span className="mono muted">{formatDate(c.date)}</span>
-              <span>{inTarget.has(c.hash) ? <span className="badge applied">{t("basket.inTarget")}</span> : <span className="status pending">{t("status.pending")}</span>}</span>
+              <span className="cp-state">
+                {(() => {
+                  const present = presentIn(c.hash);
+                  if (present.length === 0) return <span className="status pending">{t("status.pending")}</span>;
+                  const label = present.length === targets.length && targets.length === 1 ? t("basket.inTarget") : t("queue.inTargets", { list: present.map(shortName).join(", ") });
+                  return (
+                    <span className="badge applied" title={present.join(", ")}>
+                      {label}
+                    </span>
+                  );
+                })()}
+              </span>
               <button className="btn ghost icon-btn" onClick={() => onRemove([c.hash])} disabled={busy} aria-label={t("basket.remove", { hash: c.shortHash })} title={t("basket.remove", { hash: c.shortHash })}>
                 <X size={14} />
               </button>

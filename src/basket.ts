@@ -1,4 +1,4 @@
-import type { Commit, Session } from "./api.ts";
+import type { Commit, Queue, Session } from "./api.ts";
 
 /** Commits waiting in the Cherry-pick tab, all loaded from one branch (plus pasted hashes). */
 export interface Basket {
@@ -79,4 +79,27 @@ export function polledSession(s: Session | null): Session | null {
   if (!s) return null;
   const finished = s.state.kind === "aborted" || (s.state.kind === "completed" && s.state.pushError === null);
   return finished ? null : s;
+}
+
+/** A queue blocks a new start while a target is pending or running. */
+export function isQueueActive(queue: Queue | null): boolean {
+  return !!queue && queue.entries.some((e) => e.outcome === "pending" || e.outcome === "running");
+}
+
+export function targetsDone(queue: Queue): { done: number; total: number } {
+  const done = queue.entries.filter((e) => e.outcome !== "pending" && e.outcome !== "running").length;
+  return { done, total: queue.entries.length };
+}
+
+/** Commits every chosen target already has: applying them anywhere would change nothing. */
+export function inEveryTarget(found: Map<string, Set<string>>, hashes: string[], targets: string[]): string[] {
+  if (targets.length === 0) return [];
+  return hashes.filter((h) => targets.every((t) => found.get(t)?.has(h)));
+}
+
+/** Next remote branch to offer as a target: releases first, then main/master, then the rest. */
+export function suggestTarget(branches: { name: string; isRemote: boolean }[], chosen: string[], source: string | null): string {
+  const free = branches.filter((b) => b.isRemote && b.name !== source && !chosen.includes(b.name)).map((b) => b.name);
+  const rank = (name: string) => (/\/release/.test(name) ? 0 : /\/(main|master)$/.test(name) ? 1 : 2);
+  return [...free].sort((a, b) => rank(a) - rank(b))[0] ?? "";
 }
