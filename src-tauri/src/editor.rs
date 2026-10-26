@@ -24,22 +24,30 @@ pub fn resolve_executable(program: &str, path_var: &str, exts: &[&str]) -> Optio
 }
 
 /// Starts the editor directly, never through `cmd /C`, so shell metacharacters in
-/// `target` are passed as data. Rust escapes `.cmd`/`.bat` arguments itself and
+/// `targets` are passed as data. Rust escapes `.cmd`/`.bat` arguments itself and
 /// refuses arguments it cannot escape safely.
-pub fn launch(executable: &Path, target: &str) -> AppResult<Child> {
+pub fn launch(executable: &Path, targets: &[&str]) -> AppResult<Child> {
     let mut cmd = Command::new(executable);
-    cmd.arg(target);
+    cmd.args(targets);
     hide_console(&mut cmd);
     cmd.spawn()
         .map_err(|e| AppError::Invalid(format!("could not launch '{}': {e}", executable.display())))
 }
 
-pub fn open(editor: &str, target: &str) -> AppResult<()> {
+/// Opens `folder` and then `files` inside it (VS Code opens the folder as the
+/// workspace and the files as tabs).
+pub fn open(editor: &str, folder: &str, files: &[String]) -> AppResult<()> {
     let pathext = env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".into());
     let exts: Vec<&str> = pathext.split(';').filter(|e| !e.is_empty()).collect();
     let path_var = env::var("PATH").unwrap_or_default();
     let executable = resolve_executable(editor, &path_var, &exts)
         .ok_or_else(|| AppError::Invalid(format!("editor '{editor}' was not found in PATH")))?;
-    launch(&executable, target)?;
+    let paths: Vec<String> = files
+        .iter()
+        .map(|f| Path::new(folder).join(f).to_string_lossy().into_owned())
+        .collect();
+    let mut targets = vec![folder];
+    targets.extend(paths.iter().map(String::as_str));
+    launch(&executable, &targets)?;
     Ok(())
 }

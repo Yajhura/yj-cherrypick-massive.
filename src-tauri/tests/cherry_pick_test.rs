@@ -439,3 +439,87 @@ fn failed_worktree_checkout_leaves_no_branch_behind() {
     assert!(store.load().unwrap().is_none(), "no session saved");
     assert_eq!(f.git(&["worktree", "list"]).lines().count(), 1);
 }
+
+fn three_with_conflict_first() -> (Fixture, SessionStore, Session, String, String) {
+    let (f, conflicting, clean) = conflict_setup();
+    let later = f.commit("c.txt", "c\n", "JIRA-3 add c", "Bruno", "2026-02-04T10:00:00");
+    let store = store(&f);
+    let s = start(&store, &f.worktrees(), request(&f, &[&conflicting, &clean, &later])).unwrap();
+    (f, store, s, clean, later)
+}
+
+#[test]
+fn items_carry_author_and_date() {
+    let (_f, _store, s, _clean, _later) = three_with_conflict_first();
+    assert_eq!(s.items[2].author, "Bruno");
+    assert!(s.items[2].date.starts_with("2026-02-04T10:00:00"), "{}", s.items[2].date);
+}
+
+#[test]
+fn pending_commits_after_the_current_one_can_be_removed_while_paused() {
+    use cherrypick_masive_lib::cherry_pick::remove_pending;
+    let (_f, store, s, clean, later) = three_with_conflict_first();
+    let current = s.items[0].hash.clone();
+
+    // The commit in conflict is not removable: Skip handles it.
+    let s = remove_pending(&store, &[later.clone(), current.clone()]).unwrap();
+
+    let hashes: Vec<&str> = s.items.iter().map(|i| i.hash.as_str()).collect();
+    assert_eq!(hashes, [current.as_str(), clean.as_str()]);
+    assert_eq!(store.load().unwrap().unwrap().items.len(), 2, "persisted");
+    fs::write(Path::new(&s.worktree).join("a.txt"), "resolved\n").unwrap();
+    let s = continue_pick(&store).unwrap();
+    assert_pushed(&s);
+    assert_eq!(statuses(&s), [PickStatus::Applied, PickStatus::Applied]);
+}
+
+#[test]
+fn removing_commits_needs_a_paused_session() {
+    use cherrypick_masive_lib::cherry_pick::remove_pending;
+    let Setup { f, c1, c2, .. } = setup();
+    let store = store(&f);
+    let err = remove_pending(&store, &[c2.clone()]).unwrap_err();
+    assert_eq!(err.to_string(), "there is no active cherry-pick session");
+    start(&store, &f.worktrees(), request(&f, &[&c1, &c2])).unwrap();
+    assert!(remove_pending(&store, &[c2]).is_err());
+}
+
+#[test]
+fn conflict_status_turns_resolved_when_markers_are_gone() {
+    use cherrypick_masive_lib::cherry_pick::conflict_status;
+    let (_f, store, s, _clean, _later) = three_with_conflict_first();
+
+    let status = conflict_status(&store).unwrap();
+    assert!(!status.resolved);
+    assert_eq!(status.unresolved, ["a.txt"]);
+
+    fs::write(Path::new(&s.worktree).join("a.txt"), "resolved\n").unwrap();
+    let status = conflict_status(&store).unwrap();
+    assert!(status.resolved);
+    assert!(status.unresolved.is_empty());
+}
+
+#[test]
+fn conflict_status_is_resolved_when_committed_in_the_ide_and_not_when_aborted() {
+    use cherrypick_masive_lib::cherry_pick::conflict_status;
+    let (_f, store, s, _clean, _later) = three_with_conflict_first();
+    let wt = Path::new(&s.worktree);
+    common::git(wt, &["cherry-pick", "--abort"]);
+    assert!(!conflict_status(&store).unwrap().resolved, "aborted outside the app");
+
+    let (_f, store, s, _clean, _later) = three_with_conflict_first();
+    let wt = Path::new(&s.worktree);
+    fs::write(wt.join("a.txt"), "resolved\n").unwrap();
+    common::git(wt, &["add", "a.txt"]);
+    common::git_env(wt, &["cherry-pick", "--continue"], &[("GIT_EDITOR", "true")]);
+    assert!(conflict_status(&store).unwrap().resolved);
+}
+
+#[test]
+fn sessions_saved_before_author_and_date_still_load() {
+    let f = Fixture::new();
+    let old = r#"{"repo":"r","target":"origin/release","branch":"b","worktree":"w","items":[{"hash":"abc","subject":"s","status":"pending","newHash":null}],"current":0,"state":{"kind":"conflict","files":["a.txt"]},"warnings":[]}"#;
+    fs::write(f.session_file(), old).unwrap();
+    let s = store(&f).load().unwrap().unwrap();
+    assert_eq!((s.items[0].author.as_str(), s.items[0].date.as_str()), ("", ""));
+}

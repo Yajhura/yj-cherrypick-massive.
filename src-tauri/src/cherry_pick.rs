@@ -23,6 +23,11 @@ pub enum PickStatus {
 pub struct PickItem {
     pub hash: String,
     pub subject: String,
+    /// Author name and strict ISO author date; empty in sessions saved before they existed.
+    #[serde(default)]
+    pub author: String,
+    #[serde(default)]
+    pub date: String,
     pub status: PickStatus,
     pub new_hash: Option<String>,
 }
@@ -183,9 +188,10 @@ fn chronological(git: &Git, hashes: &[String], target: &str) -> AppResult<Vec<St
 fn resolve_items(git: &Git, hashes: &[String]) -> AppResult<Vec<PickItem>> {
     let mut items = Vec::with_capacity(hashes.len());
     for input in hashes {
-        let line = git.run(&["log", "-1", "--format=%H%x1f%P%x1f%s", input])?;
-        let mut f = line.trim_end().splitn(3, '\x1f');
-        let (hash, parents, subject) = (f.next().unwrap_or(""), f.next().unwrap_or(""), f.next().unwrap_or(""));
+        let line = git.run(&["log", "-1", "--format=%H%x1f%P%x1f%an%x1f%aI%x1f%s", input])?;
+        let mut f = line.trim_end().splitn(5, '\x1f');
+        let mut next = || f.next().unwrap_or("");
+        let (hash, parents, author, date, subject) = (next(), next(), next(), next(), next());
         if parents.split_whitespace().count() > 1 {
             return Err(AppError::Invalid(format!("merge commits cannot be cherry-picked: {hash}")));
         }
@@ -195,6 +201,8 @@ fn resolve_items(git: &Git, hashes: &[String]) -> AppResult<Vec<PickItem>> {
         items.push(PickItem {
             hash: hash.to_string(),
             subject: subject.to_string(),
+            author: author.to_string(),
+            date: date.to_string(),
             status: PickStatus::Pending,
             new_hash: None,
         });
@@ -448,6 +456,54 @@ pub fn skip(store: &SessionStore) -> AppResult<Session> {
     store.save(&session)?;
     advance(store, &mut session)?;
     Ok(session)
+}
+
+/// Removes pending commits that come after the current one while the session waits
+/// on the user. The commit that stopped the session is handled with Skip instead.
+pub fn remove_pending(store: &SessionStore, hashes: &[String]) -> AppResult<Session> {
+    let mut session = store.active()?;
+    if !matches!(session.state, SessionState::Conflict { .. } | SessionState::Failed { .. }) {
+        return Err(AppError::Invalid("commits can only be removed while the session is paused".into()));
+    }
+    let current = session.current;
+    let mut index = 0;
+    session.items.retain(|item| {
+        let keep = index <= current || item.status != PickStatus::Pending || !hashes.contains(&item.hash);
+        index += 1;
+        keep
+    });
+    store.save(&session)?;
+    Ok(session)
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ConflictStatus {
+    /// Continue would succeed now as far as the files are concerned.
+    pub resolved: bool,
+    /// Conflicted files that still contain conflict markers.
+    pub unresolved: Vec<String>,
+}
+
+/// Checks the worktree the same way Continue does, without changing anything, so the
+/// app can tell the user when the conflict looks resolved.
+pub fn conflict_status(store: &SessionStore) -> AppResult<ConflictStatus> {
+    let session = store.active()?;
+    let SessionState::Conflict { files } = &session.state else {
+        return Err(AppError::Invalid("the session is not waiting on a conflict".into()));
+    };
+    let wt = session.worktree_git();
+    if !pick_in_progress(&wt)? {
+        // Committed in the IDE counts as resolved; aborted there does not.
+        let resolved = committed_outside(&session, &wt)?.is_some();
+        return Ok(ConflictStatus { resolved, unresolved: Vec::new() });
+    }
+    let unresolved: Vec<String> = files
+        .iter()
+        .filter(|f| has_conflict_markers(&wt.dir().join(f)))
+        .cloned()
+        .collect();
+    Ok(ConflictStatus { resolved: unresolved.is_empty(), unresolved })
 }
 
 pub fn retry_push(store: &SessionStore) -> AppResult<Session> {

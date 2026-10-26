@@ -195,3 +195,49 @@ fn filters_by_several_authors_by_email() {
     let subjects: Vec<String> = list_commits(&Git::new(&f.repo), &q).unwrap().commits.into_iter().map(|c| c.subject).collect();
     assert_eq!(subjects, ["OPS-7 add c", "JIRA-2 add b", "JIRA-1 add a"]);
 }
+
+#[test]
+fn looks_up_pasted_hashes_in_input_order_and_reports_rejects() {
+    use cherrypick_masive_lib::commits::lookup_commits;
+    let f = develop_fixture();
+    let git = Git::new(&f.repo);
+    let rev = |r: &str| f.git(&["rev-parse", r]);
+    let (b, a, merge) = (rev("develop^1"), rev("develop~2"), rev("develop"));
+    let a_short = &a[..7];
+    // Mixed separators, a duplicate (short and full), an unknown hash, a ref name and a merge.
+    let text = format!("{b}, {a_short}\n{a}; deadbeef main {merge}");
+
+    let found = lookup_commits(&git, &text, PATTERN).unwrap();
+
+    let hashes: Vec<&str> = found.commits.iter().map(|c| c.hash.as_str()).collect();
+    assert_eq!(hashes, [b.as_str(), a.as_str()]);
+    assert_eq!(found.commits[1].subject, "JIRA-1 add a");
+    assert_eq!(found.unknown, ["deadbeef", "main"]);
+    assert_eq!(found.merges, [merge[..8].to_string()]);
+}
+
+#[test]
+fn finds_which_commits_are_already_in_a_target() {
+    use cherrypick_masive_lib::commits::commits_in_target;
+    let f = Fixture::new();
+    let base = f.git(&["rev-parse", "main"]);
+    f.new_branch("develop", "main");
+    let same = f.commit("a.txt", "a\n", "add a", "Ana", "2026-02-01T10:00:00");
+    let picked = f.commit("b.txt", "b\n", "add b", "Ana", "2026-02-02T10:00:00");
+    let missing = f.commit("c.txt", "c\n", "add c", "Ana", "2026-02-03T10:00:00");
+    f.new_branch("release", "main");
+    // Same patch (patch-id), and a -x pick whose content was changed while resolving.
+    f.git(&["cherry-pick", &same]);
+    f.git(&["cherry-pick", "-x", "--no-commit", &picked]);
+    std::fs::write(f.repo.join("b.txt"), "b changed\n").unwrap();
+    f.git(&["add", "b.txt"]);
+    common::git_env(&f.repo, &["commit", "-q", "--no-edit"], &[("GIT_EDITOR", "true")]);
+    let msg = f.git(&["log", "-1", "--format=%B"]);
+    let msg = if msg.contains("cherry picked from") { msg } else { format!("add b\n\n(cherry picked from commit {picked})") };
+    f.git(&["commit", "-q", "--amend", "-m", &msg]);
+
+    let hashes = vec![same.clone(), picked.clone(), missing.clone(), base.clone()];
+    let found = commits_in_target(&Git::new(&f.repo), &hashes, "release").unwrap();
+
+    assert_eq!(found, [same, picked, base]);
+}

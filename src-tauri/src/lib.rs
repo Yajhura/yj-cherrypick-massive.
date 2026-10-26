@@ -15,8 +15,8 @@ use std::sync::{Arc, Mutex};
 use serde::Serialize;
 use tauri::{Manager, State};
 
-use cherry_pick::{Session, SessionStore, StartRequest};
-use commits::{Author, Commit, CommitList, CommitQuery};
+use cherry_pick::{ConflictStatus, Session, SessionStore, StartRequest};
+use commits::{Author, Commit, CommitList, CommitQuery, Lookup};
 use error::{AppError, AppResult};
 use export::ExportFormat;
 use git::Git;
@@ -124,8 +124,31 @@ fn render_branch_name(template: String, target: String, tickets: Vec<String>) ->
 }
 
 #[tauri::command]
+async fn lookup_commits(repo: String, text: String, ticket_pattern: String) -> AppResult<Lookup> {
+    blocking(move || commits::lookup_commits(&Git::new(&repo), &text, &ticket_pattern)).await
+}
+
+#[tauri::command]
+async fn commits_in_target(repo: String, hashes: Vec<String>, target: String) -> AppResult<Vec<String>> {
+    blocking(move || commits::commits_in_target(&Git::new(&repo), &hashes, &target)).await
+}
+
+/// Reads the saved session without the session lock, so the UI can follow progress
+/// while a long command runs. Saves are write-then-rename, so a read never sees half a file.
+#[tauri::command]
 async fn current_session(paths: State<'_, AppPaths>) -> AppResult<Option<Session>> {
-    blocking(with_session(&paths, |store| store.load())).await
+    let store = SessionStore::new(paths.session.clone());
+    blocking(move || store.load()).await
+}
+
+#[tauri::command]
+async fn remove_pending_commits(paths: State<'_, AppPaths>, hashes: Vec<String>) -> AppResult<Session> {
+    blocking(with_session(&paths, move |store| cherry_pick::remove_pending(store, &hashes))).await
+}
+
+#[tauri::command]
+async fn conflict_status(paths: State<'_, AppPaths>) -> AppResult<ConflictStatus> {
+    blocking(with_session(&paths, cherry_pick::conflict_status)).await
 }
 
 #[tauri::command]
@@ -160,9 +183,9 @@ async fn dismiss_session(paths: State<'_, AppPaths>) -> AppResult<()> {
 }
 
 #[tauri::command]
-fn open_in_editor(paths: State<'_, AppPaths>, path: String) -> AppResult<()> {
+fn open_in_editor(paths: State<'_, AppPaths>, path: String, files: Vec<String>) -> AppResult<()> {
     let editor = SettingsStore::new(paths.settings.clone()).load().editor_command;
-    editor::open(&editor, &path)
+    editor::open(&editor, &path, &files)
 }
 
 #[tauri::command]
@@ -195,7 +218,11 @@ pub fn run() {
             commit_stat,
             commit_diff,
             render_branch_name,
+            lookup_commits,
+            commits_in_target,
             current_session,
+            remove_pending_commits,
+            conflict_status,
             start_cherry_pick,
             continue_cherry_pick,
             skip_commit,

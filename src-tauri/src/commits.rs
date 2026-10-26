@@ -157,6 +157,82 @@ pub fn applied_in_target(git: &Git, source: &str, target: &str) -> AppResult<Has
     Ok(applied)
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Lookup {
+    /// Found non-merge commits, in input order, without repeats.
+    pub commits: Vec<Commit>,
+    /// Inputs that are not a commit hash of this repository.
+    pub unknown: Vec<String>,
+    /// Short hashes of merge commits, which cannot be cherry-picked.
+    pub merges: Vec<String>,
+}
+
+fn log_format() -> String {
+    format!("--format=%H{FIELD}%P{FIELD}%an{FIELD}%ae{FIELD}%aI{FIELD}%s{FIELD}%b{RECORD}")
+}
+
+/// Resolves hashes pasted as free text (separated by spaces, commas, semicolons or
+/// new lines). Only hex hashes are accepted, so a branch name is never resolved.
+pub fn lookup_commits(git: &Git, text: &str, ticket_pattern: &str) -> AppResult<Lookup> {
+    let re = ticket_regex(ticket_pattern)?;
+    let mut found = Lookup { commits: Vec::new(), unknown: Vec::new(), merges: Vec::new() };
+    let mut hashes: Vec<String> = Vec::new();
+    for token in text.split(|c: char| c.is_whitespace() || c == ',' || c == ';').filter(|t| !t.is_empty()) {
+        let hex = (4..=40).contains(&token.len()) && token.chars().all(|c| c.is_ascii_hexdigit());
+        let full = if hex {
+            let out = git.output(&["rev-parse", "--verify", "--quiet", &format!("{token}^{{commit}}")])?;
+            out.success.then(|| out.stdout.trim().to_string())
+        } else {
+            None
+        };
+        match full {
+            Some(h) if !hashes.contains(&h) => hashes.push(h),
+            Some(_) => {}
+            None => found.unknown.push(token.to_string()),
+        }
+    }
+    if hashes.is_empty() {
+        return Ok(found);
+    }
+    let mut args = vec!["log".to_string(), "--no-walk=unsorted".into(), log_format()];
+    args.extend(hashes.iter().cloned());
+    args.push("--".into());
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    for c in parse_log(&git.run(&args)?, &re) {
+        if c.is_merge {
+            found.merges.push(c.short_hash);
+        } else {
+            found.commits.push(c);
+        }
+    }
+    Ok(found)
+}
+
+/// Which of `hashes` already exist in `target`: reachable from it, the same patch
+/// (patch-id), or named by a `cherry picked from commit` trailer. Works for commits
+/// of any branch, unlike [`applied_in_target`].
+pub fn commits_in_target(git: &Git, hashes: &[String], target: &str) -> AppResult<Vec<String>> {
+    let trailer = Regex::new(r"cherry picked from commit ([0-9a-f]{7,40})").expect("valid regex");
+    let bodies = git.run(&["log", "--format=%B", "--grep=cherry picked from commit", target, "--"])?;
+    let picked: Vec<String> = trailer.captures_iter(&bodies).map(|c| c[1].to_string()).collect();
+
+    let mut found = Vec::new();
+    for hash in hashes {
+        let in_target = git.output(&["merge-base", "--is-ancestor", hash, target])?.success
+            || picked.iter().any(|p| hash.starts_with(p.as_str()))
+            || git
+                .output(&["cherry", target, hash, &format!("{hash}^")])?
+                .stdout
+                .lines()
+                .any(|l| l.starts_with("- "));
+        if in_target {
+            found.push(hash.clone());
+        }
+    }
+    Ok(found)
+}
+
 fn matches(c: &Commit, q: &CommitQuery) -> bool {
     if let Some(author) = non_empty(&q.author) {
         let a = author.to_lowercase();
@@ -190,8 +266,7 @@ pub fn list_commits(git: &Git, q: &CommitQuery) -> AppResult<CommitList> {
         Some(t) => format!("{t}..{}", q.source),
         None => q.source.clone(),
     };
-    let format = format!("--format=%H{FIELD}%P{FIELD}%an{FIELD}%ae{FIELD}%aI{FIELD}%s{FIELD}%b{RECORD}");
-    let mut args = vec!["log".to_string(), "--topo-order".into(), format];
+    let mut args = vec!["log".to_string(), "--topo-order".into(), log_format()];
     // Committer date is never earlier than author date, so this only narrows the scan.
     if let Some(since) = non_empty(&q.since) {
         args.push(format!("--since={since} 00:00:00"));
