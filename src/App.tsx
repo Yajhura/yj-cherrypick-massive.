@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ask, open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { Cherry, CircleCheck, History, OctagonAlert, TriangleAlert } from "lucide-react";
 import { api, Author, Branch, Commit, errorMessage, ExportFormat, isSessionFinished, OpenedRepo, Session, Settings } from "./api";
-import { addToBasket, Basket, emptyBasket, loadIntoBasket, progressOf, rangeBetween } from "./basket";
+import { addToBasket, Basket, emptyBasket, loadIntoBasket, polledSession, progressOf, rangeBetween } from "./basket";
 import { emptyFilters, Filters, useCommitDetail, useCommits } from "./hooks";
 import { Toolbar } from "./components/Toolbar";
 import { FilterBar } from "./components/FilterBar";
@@ -198,13 +198,21 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
   // While the engine applies commits, follow its saved progress.
   useEffect(() => {
     if (!sessionBusy) return;
+    // Answers that arrive after the command finished are dropped: its result is newer.
+    let stopped = false;
     const id = window.setInterval(() => {
       api
         .currentSession()
-        .then((s) => s && setSession(s))
+        .then((s) => {
+          const live = polledSession(s);
+          if (!stopped && live) setSession(live);
+        })
         .catch(() => undefined);
     }, PROGRESS_POLL_MS);
-    return () => window.clearInterval(id);
+    return () => {
+      stopped = true;
+      window.clearInterval(id);
+    };
   }, [sessionBusy]);
 
   // A stop or the end of the run needs the user: tell them, also when the app is behind.
@@ -294,8 +302,8 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
       setBasket(emptyBasket);
     } catch (e) {
       // A failure before the first pick leaves no session; a later one is shown with it.
-      const saved = await api.currentSession().catch(() => null);
-      if (saved && !isSessionFinished(saved)) {
+      const saved = polledSession(await api.currentSession().catch(() => null));
+      if (saved) {
         setSession(saved);
         setBasket(emptyBasket);
         setSessionError(fail(e));

@@ -69,3 +69,14 @@ export function progressOf(session: Session): Progress {
     pending,
   };
 }
+
+/**
+ * What a progress poll may show: only a session that still needs work. A finished run
+ * stays in the session file until dismissed and must not replace a new start.
+ * Same rule as `isSessionFinished` in api.ts, kept here free of the Tauri runtime.
+ */
+export function polledSession(s: Session | null): Session | null {
+  if (!s) return null;
+  const finished = s.state.kind === "aborted" || (s.state.kind === "completed" && s.state.pushError === null);
+  return finished ? null : s;
+}

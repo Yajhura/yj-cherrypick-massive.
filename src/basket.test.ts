@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { type Basket, addToBasket, emptyBasket, loadIntoBasket, orderByDate, progressOf, rangeBetween } from "./basket.ts";
+import { type Basket, addToBasket, emptyBasket, loadIntoBasket, orderByDate, polledSession, progressOf, rangeBetween } from "./basket.ts";
 import type { Commit, Session } from "./api.ts";
 
 const commit = (hash: string, date: string, isMerge = false): Commit => ({
@@ -63,4 +63,20 @@ test("progress counts finished picks over the total", () => {
   const session = { items: [item("applied"), item("empty"), item("skipped"), item("pending")] } as Session;
   assert.deepEqual(progressOf(session), { done: 3, total: 4, percent: 75, applied: 1, empty: 1, skipped: 1, pending: 1 });
   assert.equal(progressOf({ items: [] } as unknown as Session).percent, 0);
+});
+
+test("a progress poll only accepts a session that is still running", () => {
+  const base = { items: [], warnings: [], repo: "r", target: "t", branch: "b", worktree: "w", current: 0 };
+  const running = { ...base, state: { kind: "running" } } as unknown as Session;
+  const conflict = { ...base, state: { kind: "conflict", files: ["a"] } } as unknown as Session;
+  const pushFailed = { ...base, state: { kind: "completed", pushed: false, pushError: "x", nothingApplied: false } } as unknown as Session;
+  const done = { ...base, state: { kind: "completed", pushed: true, pushError: null, nothingApplied: false } } as unknown as Session;
+  const aborted = { ...base, state: { kind: "aborted" } } as unknown as Session;
+  assert.equal(polledSession(running), running);
+  assert.equal(polledSession(conflict), conflict);
+  assert.equal(polledSession(pushFailed), pushFailed);
+  // A finished run left in the file from before must not replace the screen.
+  assert.equal(polledSession(done), null);
+  assert.equal(polledSession(aborted), null);
+  assert.equal(polledSession(null), null);
 });
