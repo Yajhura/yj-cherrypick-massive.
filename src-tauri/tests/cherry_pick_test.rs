@@ -384,3 +384,58 @@ fn pushes_when_the_remote_url_is_relative_to_the_repo() {
     assert_pushed(&s);
     assert_eq!(f.remote_log("cherry-pick/release/test")[0], "JIRA-1 add a");
 }
+
+#[test]
+fn checks_out_targets_with_paths_longer_than_windows_max_path() {
+    let Setup { f, c1, .. } = setup();
+    // Committed through the index only, so the fixture never writes the long path itself.
+    let deep = format!("{}/Repository.cs", ["SomeVeryLongProjectFolderName.Infrastructure"; 5].join("/"));
+    f.checkout("release");
+    fs::write(f.repo.join("blob.txt"), "x\n").unwrap();
+    let blob = f.git(&["hash-object", "-w", "blob.txt"]);
+    fs::remove_file(f.repo.join("blob.txt")).unwrap();
+    f.git(&["update-index", "--add", "--cacheinfo", &format!("100644,{blob},{deep}")]);
+    f.git(&["commit", "-q", "-m", "add deep file"]);
+    f.git(&["push", "-q", "origin", "release"]);
+    // The deep file is missing from disk; force past it.
+    f.git(&["checkout", "-q", "-f", "develop"]);
+
+    let s = start(&store(&f), &f.worktrees(), request(&f, &[&c1])).unwrap();
+
+    assert_pushed(&s);
+    assert_eq!(statuses(&s), [PickStatus::Applied]);
+}
+
+#[test]
+fn failed_worktree_checkout_leaves_no_branch_behind() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let Setup { f, c1, .. } = setup();
+    // Windows cannot check out a path with ':', so `worktree add` fails after creating the branch.
+    let blob = {
+        fs::write(f.repo.join("blob.txt"), "x\n").unwrap();
+        let blob = f.git(&["hash-object", "-w", "blob.txt"]);
+        fs::remove_file(f.repo.join("blob.txt")).unwrap();
+        blob
+    };
+    let mut mktree = Command::new("git")
+        .current_dir(&f.repo)
+        .arg("mktree")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    write!(mktree.stdin.take().unwrap(), "100644 blob {blob}\tbad:name.txt\n").unwrap();
+    let tree = String::from_utf8(mktree.wait_with_output().unwrap().stdout).unwrap();
+    let parent = f.git(&["rev-parse", "release"]);
+    let commit = f.git(&["commit-tree", tree.trim(), "-p", &parent, "-m", "bad path"]);
+    f.git(&["push", "-q", "-f", "origin", &format!("{commit}:refs/heads/release")]);
+
+    let store = store(&f);
+    assert!(start(&store, &f.worktrees(), request(&f, &[&c1])).is_err());
+
+    assert_eq!(f.git(&["branch", "--list", "cherry-pick/release/test"]), "");
+    assert!(store.load().unwrap().is_none(), "no session saved");
+    assert_eq!(f.git(&["worktree", "list"]).lines().count(), 1);
+}

@@ -45,6 +45,8 @@ impl Git {
         let mut cmd = Command::new("git");
         cmd.current_dir(&self.dir)
             .args(["-c", "core.quotepath=false", "-c", "color.ui=never"])
+            // Worktrees live deep under AppData; lift Windows' 260-char path limit.
+            .args(["-c", "core.longpaths=true"])
             .args(args)
             // Never block on an interactive prompt or editor.
             .env("GIT_TERMINAL_PROMPT", "0")

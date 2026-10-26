@@ -236,7 +236,13 @@ pub fn start(store: &SessionStore, worktrees_root: &Path, req: StartRequest) -> 
     let worktree = worktree_dir(worktrees_root, &req.branch);
     fs::create_dir_all(worktrees_root)?;
     let wt = worktree.to_string_lossy().into_owned();
-    git.run(&["worktree", "add", "-b", &req.branch, &wt, &req.target])?;
+    if let Err(e) = git.run(&["worktree", "add", "-b", &req.branch, &wt, &req.target]) {
+        // git creates the branch before checking out, so a failed checkout would block a retry.
+        let _ = fs::remove_dir_all(&worktree);
+        let _ = git.output(&["worktree", "prune"]);
+        let _ = git.output(&["branch", "-D", &req.branch]);
+        return Err(e);
+    }
 
     let mut session = Session {
         repo: req.repo,
