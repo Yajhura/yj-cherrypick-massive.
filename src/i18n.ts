@@ -589,6 +589,7 @@ const backendErrors: [RegExp, string][] = [
   [/^editor '(.*)' was not found in PATH$/s, "No se encontró el editor '$1' en el PATH"],
   [/^no remote configured$/, "No hay ningún remoto configurado"],
   [/^could not remove worktree (.*?): (.*)$/s, "No se pudo eliminar el worktree $1: $2"],
+  [/^could not delete branch (.*?): (.*)$/s, "No se pudo eliminar la rama $1: $2"],
   [/^could not restore branch (.*?): (.*)$/s, "No se pudo restaurar la rama $1: $2"],
   [/^io error: (.*)$/s, "Error de E/S: $1"],
   [/^serialization error: (.*)$/s, "Error de formato: $1"],

@@ -38,6 +38,8 @@ test("known backend errors are translated and git output is kept verbatim", () =
     translateError("es", "git push -u origin x failed: fatal: Authentication failed"),
     "git push -u origin x falló: fatal: Authentication failed",
   );
+  assert.equal(translateError("es", "could not delete branch cp/x: busy"), "No se pudo eliminar la rama cp/x: busy");
+  assert.equal(translateError("es", "could not restore branch cp/x: busy"), "No se pudo restaurar la rama cp/x: busy");
   assert.equal(translateError("es", "something new"), "something new");
   assert.equal(translateError("en", "invalid branch name: 'a..b'"), "invalid branch name: 'a..b'");
 });

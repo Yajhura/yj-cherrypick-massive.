@@ -578,12 +578,12 @@ pub fn abort(store: &SessionStore) -> AppResult<Session> {
     }
     remove_worktree(&mut session);
     let repo = Git::new(&session.repo);
-    let undone = match &session.restore_to {
-        Some(tip) => repo.run(&["branch", "-f", &session.branch, tip]),
-        None => repo.run(&["branch", "-D", &session.branch]),
+    let (undone, verb) = match &session.restore_to {
+        Some(tip) => (repo.run(&["branch", "-f", &session.branch, tip]), "restore"),
+        None => (repo.run(&["branch", "-D", &session.branch]), "delete"),
     };
     if let Err(e) = undone {
-        session.warnings.push(format!("could not restore branch {}: {e}", session.branch));
+        session.warnings.push(format!("could not {verb} branch {}: {e}", session.branch));
     }
     session.state = SessionState::Aborted;
     store.clear()?;
