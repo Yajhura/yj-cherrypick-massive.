@@ -24,3 +24,9 @@ test("an empty query returns every branch in the given order", () => {
   const branches = [b("main"), b("develop"), b("zeta")];
   assert.deepEqual(names(searchBranches(branches, "")), ["main", "develop", "zeta"]);
 });
+
+test("a query that includes the remote name also matches", () => {
+  const branches = [b("origin/release/2", true), b("origin/release/1", true), b("release/1")];
+  assert.deepEqual(names(searchBranches(branches, "origin/release/1")), ["origin/release/1"]);
+  assert.deepEqual(names(searchBranches(branches, "origin/rel")), ["origin/release/2", "origin/release/1"]);
+});

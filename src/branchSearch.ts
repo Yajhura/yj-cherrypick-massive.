@@ -31,7 +31,9 @@ export function searchBranches<T extends Named>(branches: T[], query: string): T
   return branches
     .map((branch, index) => {
       const name = localName(branch);
-      return { branch, index, rank: matchRank(name, q), length: name.length };
+      // "origin/rel" must find origin/release/*: also try the full name.
+      const ranks = [matchRank(name, q), matchRank(branch.name.toLowerCase(), q)].filter((r) => r >= 0);
+      return { branch, index, rank: ranks.length ? Math.min(...ranks) : -1, length: name.length };
     })
     .filter((m) => m.rank >= 0)
     .sort((a, b) => a.rank - b.rank || a.length - b.length || a.index - b.index)
