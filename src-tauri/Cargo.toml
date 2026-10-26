@@ -28,6 +28,7 @@ csv = "1"
 rust_xlsxwriter = "0.101.0"
 tauri-plugin-dialog = "2"
 chrono = "0.4"
+tauri-plugin-notification = "2"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
