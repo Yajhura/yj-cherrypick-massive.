@@ -16,6 +16,8 @@ export interface Settings {
   ticketPattern: string;
   branchTemplate: string;
   editorCommand: string;
+  /** `auto` follows the OS language; otherwise `en` or `es`. */
+  language: string;
 }
 
 export interface Commit {

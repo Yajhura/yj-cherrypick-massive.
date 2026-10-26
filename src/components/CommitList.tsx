@@ -1,6 +1,7 @@
 import { forwardRef, KeyboardEvent, useEffect, useRef } from "react";
 import { Commit } from "../api";
 import { Display, StatusChip } from "./SessionPanel";
+import { useI18n } from "../i18n";
 
 interface Props {
   commits: Commit[];
@@ -32,6 +33,7 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
   { commits, sessionStatus, selected, activeIndex, onActivate, onToggle, onSelectAll, onClearSelection },
   ref,
 ) {
+  const { t } = useI18n();
   const activeRow = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -85,7 +87,7 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
       ref={ref}
       className={`list${sessionStatus.size > 0 ? " in-session" : ""}`}
       role="listbox"
-      aria-label="Commits"
+      aria-label={t("list.label")}
       aria-multiselectable="true"
       aria-activedescendant={activeId}
       tabIndex={0}
@@ -93,10 +95,10 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
     >
       <div className="list-head" aria-hidden="true">
         <span />
-        <span>Subject</span>
-        <span>{sessionStatus.size > 0 ? "Author · status" : "Author"}</span>
-        <span>Hash</span>
-        <span>Date</span>
+        <span>{t("list.subject")}</span>
+        <span>{sessionStatus.size > 0 ? t("list.authorStatus") : t("list.author")}</span>
+        <span>{t("list.hash")}</span>
+        <span>{t("list.date")}</span>
       </div>
       {commits.map((c, i) => {
         const selectable = isSelectable(c);
@@ -116,10 +118,10 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
             <input
               type="checkbox"
               tabIndex={-1}
-              aria-label={`Select ${c.shortHash}`}
+              aria-label={t("list.select", { hash: c.shortHash })}
               checked={isSelected}
               disabled={!selectable}
-              title={selectable ? undefined : "Merge commits cannot be cherry-picked"}
+              title={selectable ? undefined : t("list.mergeDisabled")}
               onClick={(e) => e.stopPropagation()}
               onChange={() => {
                 onActivate(i);
@@ -136,8 +138,8 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
               <span className="text" title={c.subject}>
                 {c.subject}
               </span>
-              {c.isMerge && <span className="badge merge">merge</span>}
-              {c.alreadyInTarget && !status && <span className="badge applied">in target</span>}
+              {c.isMerge && <span className="badge merge">{t("list.badgeMerge")}</span>}
+              {c.alreadyInTarget && !status && <span className="badge applied">{t("list.badgeInTarget")}</span>}
             </span>
             {/* During a session the author column carries the pick status, so the subject keeps its width. */}
             <span className="author" title={`${c.authorName} <${c.authorEmail}>`}>

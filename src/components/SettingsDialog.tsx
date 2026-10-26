@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Settings } from "../api";
 import { Dialog } from "./Dialog";
+import { languageNames, useI18n } from "../i18n";
 
 interface Props {
   open: boolean;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function SettingsDialog({ open, settings, error, onCancel, onSave }: Props) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState(settings);
   useEffect(() => {
     if (open) setDraft(settings);
@@ -21,33 +23,41 @@ export function SettingsDialog({ open, settings, error, onCancel, onSave }: Prop
   return (
     <Dialog
       open={open}
-      title="Settings"
+      title={t("settings.title")}
       onClose={onCancel}
       footer={
         <>
           <button className="btn" onClick={onCancel}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button className="btn primary" onClick={() => onSave(draft)}>
-            Save
+            {t("common.save")}
           </button>
         </>
       }
     >
       <label className="field">
-        <span>Ticket pattern (regular expression)</span>
+        <span>{t("settings.language")}</span>
+        <select className="input" value={draft.language} onChange={(e) => set({ language: e.target.value })}>
+          <option value="auto">{t("settings.langAuto")}</option>
+          <option value="en">{languageNames.en}</option>
+          <option value="es">{languageNames.es}</option>
+        </select>
+      </label>
+      <label className="field">
+        <span>{t("settings.ticket")}</span>
         <input className="input mono" value={draft.ticketPattern} onChange={(e) => set({ ticketPattern: e.target.value })} />
-        <p className="hint">Extracts ticket ids from commit messages for the Ticket filter and exports. Default: [A-Z]+-\d+</p>
+        <p className="hint">{t("settings.ticketHint")}</p>
       </label>
       <label className="field">
-        <span>Branch name template</span>
+        <span>{t("settings.template")}</span>
         <input className="input mono" value={draft.branchTemplate} onChange={(e) => set({ branchTemplate: e.target.value })} />
-        <p className="hint">Placeholders: {"{target}"} (without origin/), {"{date}"} (YYYYMMDD), {"{ticket}"} (first ticket of the selection).</p>
+        <p className="hint">{t("settings.templateHint", { target: "{target}", date: "{date}", ticket: "{ticket}" })}</p>
       </label>
       <label className="field">
-        <span>Editor command</span>
+        <span>{t("settings.editor")}</span>
         <input className="input mono" value={draft.editorCommand} onChange={(e) => set({ editorCommand: e.target.value })} />
-        <p className="hint">Program used by “Open in editor”, found in PATH. Example: code, cursor, idea64.</p>
+        <p className="hint">{t("settings.editorHint")}</p>
       </label>
       {error && (
         <p className="error-text" role="alert">

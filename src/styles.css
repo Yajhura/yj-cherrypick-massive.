@@ -236,6 +236,7 @@ input[type="checkbox"]:disabled { border-color: var(--line); background-color: v
 .status.empty { color: var(--ink-muted); background: var(--neutral-soft); }
 .status.skipped { color: var(--warn); background: var(--warn-soft); }
 .status.conflict { color: var(--danger); background: var(--danger-soft); }
+.status.failed { color: var(--danger); background: var(--danger-soft); border: 1px dashed var(--danger); }
 .status.pending { color: var(--ink-muted); background: transparent; border: 1px dashed var(--line); }
 .status.working { color: var(--accent); background: var(--accent-soft); }
 .panel { padding: 12px 16px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; background: var(--pane-sunken); }

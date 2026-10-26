@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { GitCommitHorizontal, LoaderCircle, TriangleAlert } from "lucide-react";
 import { Commit, CommitDiff, FileStat } from "../api";
 import { formatDate } from "./CommitList";
+import { useI18n } from "../i18n";
 
 interface Props {
   commit: Commit | null;
@@ -20,15 +21,16 @@ function lineClass(line: string) {
 }
 
 export function CommitDetail({ commit, stat, diff, loading, error }: Props) {
+  const { t } = useI18n();
   const lines = useMemo(() => (diff ? diff.patch.split("\n") : []), [diff]);
 
   if (!commit) {
     return (
-      <section className="detail" aria-label="Commit detail">
+      <section className="detail" aria-label={t("detail.label")}>
         <div className="placeholder">
           <GitCommitHorizontal size={28} />
-          <h2>No commit selected</h2>
-          <p>Move through the list with <kbd>J</kbd> <kbd>K</kbd> or the arrow keys, and select with <kbd>Space</kbd>.</p>
+          <h2>{t("detail.noneTitle")}</h2>
+          <p>{t("detail.noneBody")}</p>
         </div>
       </section>
     );
@@ -37,7 +39,7 @@ export function CommitDetail({ commit, stat, diff, loading, error }: Props) {
   const totals = (stat ?? []).reduce((acc, f) => ({ add: acc.add + (f.additions ?? 0), del: acc.del + (f.deletions ?? 0) }), { add: 0, del: 0 });
 
   return (
-    <section className="detail" aria-label="Commit detail">
+    <section className="detail" aria-label={t("detail.label")}>
       <div className="detail-head">
         <h1>{commit.subject}</h1>
         <div className="meta">
@@ -50,7 +52,7 @@ export function CommitDetail({ commit, stat, diff, loading, error }: Props) {
       {error && (
         <div className="notice error" role="alert">
           <TriangleAlert size={16} />
-          <span className="grow">Could not load this commit: {error}</span>
+          <span className="grow">{t("detail.loadError", { error })}</span>
         </div>
       )}
       {loading && !stat && (
@@ -59,10 +61,10 @@ export function CommitDetail({ commit, stat, diff, loading, error }: Props) {
         </div>
       )}
       {stat && (
-        <div className="files" aria-label="Changed files">
+        <div className="files" aria-label={t("detail.changedFiles")}>
           <div className="file muted">
             <span>
-              {stat.length} file{stat.length === 1 ? "" : "s"} changed
+              {stat.length === 1 ? t("detail.files1") : t("detail.filesN", { count: stat.length })}
             </span>
             <span className="nums mono">
               <span className="add">+{totals.add}</span>
@@ -76,7 +78,7 @@ export function CommitDetail({ commit, stat, diff, loading, error }: Props) {
               </span>
               <span className="nums mono">
                 {f.additions === null ? (
-                  <span className="muted">binary</span>
+                  <span className="muted">{t("detail.binary")}</span>
                 ) : (
                   <>
                     <span className="add">+{f.additions}</span>
@@ -91,11 +93,11 @@ export function CommitDetail({ commit, stat, diff, loading, error }: Props) {
       {diff?.truncated && (
         <div className="notice warn">
           <TriangleAlert size={16} />
-          <span className="grow">This diff is larger than 2 MB and is cut off.</span>
+          <span className="grow">{t("detail.truncated")}</span>
         </div>
       )}
       {diff && (
-        <pre className="diff" aria-label="Diff">
+        <pre className="diff" aria-label={t("detail.diff")}>
           {lines.map((line, i) => (
             <div key={i} className={lineClass(line)}>
               {line || " "}

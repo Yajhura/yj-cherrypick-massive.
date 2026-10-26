@@ -15,6 +15,8 @@ pub struct Settings {
     pub branch_template: String,
     /// Command used to open a worktree in the editor, e.g. `code`.
     pub editor_command: String,
+    /// UI language: `auto` (follow the OS), `en` or `es`.
+    pub language: String,
 }
 
 impl Default for Settings {
@@ -24,6 +26,7 @@ impl Default for Settings {
             ticket_pattern: r"[A-Z]+-\d+".to_string(),
             branch_template: "cherry-pick/{target}/{date}".to_string(),
             editor_command: "code".to_string(),
+            language: "auto".to_string(),
         }
     }
 }

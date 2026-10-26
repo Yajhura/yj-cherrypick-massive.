@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Author } from "../api";
+import { useI18n } from "../i18n";
 
 interface Props {
   authors: Author[];
@@ -10,6 +11,7 @@ interface Props {
 
 /** Multi-select of the authors found in the current branch, keyed by email. */
 export function AuthorPicker({ authors, selected, onChange }: Props) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -36,10 +38,10 @@ export function AuthorPicker({ authors, selected, onChange }: Props) {
 
   const label =
     selected.length === 0
-      ? "Any author"
+      ? t("authors.any")
       : selected.length === 1
         ? (authors.find((a) => a.email.toLowerCase() === selected[0].toLowerCase())?.name ?? selected[0])
-        : `${selected.length} authors`;
+        : t("authors.n", { count: selected.length });
 
   return (
     <div className="menu-wrap author-picker" ref={ref} onKeyDown={(e) => e.key === "Escape" && setOpen(false)}>
@@ -49,9 +51,9 @@ export function AuthorPicker({ authors, selected, onChange }: Props) {
       </button>
       {open && (
         <div className="menu picker">
-          <input className="input" autoFocus placeholder="Search authors" aria-label="Search authors" value={query} onChange={(e) => setQuery(e.target.value)} />
-          <div className="picker-list" role="listbox" aria-multiselectable="true" aria-label="Authors">
-            {shown.length === 0 && <p className="empty">No authors match</p>}
+          <input className="input" autoFocus placeholder={t("authors.search")} aria-label={t("authors.search")} value={query} onChange={(e) => setQuery(e.target.value)} />
+          <div className="picker-list" role="listbox" aria-multiselectable="true" aria-label={t("authors.label")}>
+            {shown.length === 0 && <p className="empty">{t("authors.none")}</p>}
             {shown.map((a) => (
               <label key={a.email} className="picker-item" role="option" aria-selected={chosen.has(a.email.toLowerCase())}>
                 <input type="checkbox" checked={chosen.has(a.email.toLowerCase())} onChange={() => toggle(a.email)} />
@@ -64,9 +66,9 @@ export function AuthorPicker({ authors, selected, onChange }: Props) {
             ))}
           </div>
           <div className="picker-foot">
-            <span className="muted">{selected.length} selected</span>
+            <span className="muted">{t("authors.selected", { count: selected.length })}</span>
             <button type="button" className="btn ghost" onClick={() => onChange([])} disabled={selected.length === 0}>
-              Clear
+              {t("authors.clear")}
             </button>
           </div>
         </div>

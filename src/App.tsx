@@ -12,12 +12,14 @@ import { Display, displayOf, SessionPanel } from "./components/SessionPanel";
 import { CherryPickDialog } from "./components/CherryPickDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { StartScreen } from "./components/StartScreen";
+import { I18nProvider, useI18n } from "./i18n";
 
 const defaultSettings: Settings = {
   recentRepos: [],
   ticketPattern: "[A-Z]+-\\d+",
   branchTemplate: "cherry-pick/{target}/{date}",
   editorCommand: "code",
+  language: "auto",
 };
 
 const extensions: Record<ExportFormat, string> = { xlsx: "xlsx", csv: "csv", markdown: "md" };
@@ -48,6 +50,17 @@ function defaultSource(branches: Branch[]): string | null {
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
+  return (
+    <I18nProvider setting={settings.language}>
+      <Main settings={settings} setSettings={setSettings} />
+    </I18nProvider>
+  );
+}
+
+function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: Settings) => void }) {
+  const { t, te } = useI18n();
+  // Backend messages are translated; git's own output inside them stays as git printed it.
+  const fail = (e: unknown) => te(errorMessage(e));
   const [repo, setRepo] = useState<OpenedRepo | null>(null);
   const [openBusy, setOpenBusy] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
@@ -94,10 +107,11 @@ export default function App() {
       setActiveIndex(0);
       setSettings(await api.getSettings());
     } catch (e) {
-      setOpenError(errorMessage(e));
+      setOpenError(fail(e));
     } finally {
       setOpenBusy(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Restore settings and any session left from a previous run.
@@ -112,7 +126,8 @@ export default function App() {
           openRepo(s.repo);
         }
       })
-      .catch((e) => setSessionLoadError(errorMessage(e)));
+      .catch((e) => setSessionLoadError(fail(e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRepo]);
 
   // Authors of the current branch feed the author filter; a failure only empties it.
@@ -176,9 +191,9 @@ export default function App() {
     if (index >= 0) setActiveIndex(index);
   }, [stoppedHash, visible]);
   const cherryPickDisabledReason = sessionActive
-    ? "Finish or abort the current cherry-pick first"
+    ? t("reason.sessionActive")
     : selected.size === 0
-      ? "Select the commits to cherry-pick first"
+      ? t("reason.noSelection")
       : null;
 
   const fetchNow = async () => {
@@ -190,30 +205,30 @@ export default function App() {
       setFetchError(null);
       setReloadKey((k) => k + 1);
     } catch (e) {
-      setFetchError(errorMessage(e));
+      setFetchError(fail(e));
     } finally {
       setFetching(false);
     }
   };
 
   const browse = async () => {
-    const path = await openDialog({ directory: true, title: "Open a git repository" });
+    const path = await openDialog({ directory: true, title: t("app.openTitle") });
     if (typeof path === "string") openRepo(path);
   };
 
   const exportVisible = async (format: ExportFormat) => {
     const base = (source ?? "history").replace(/[\\/:*?"<>|]+/g, "-");
     const path = await saveDialog({
-      title: "Export commits",
+      title: t("app.exportTitle"),
       defaultPath: `${base}-history.${extensions[format]}`,
       filters: [{ name: format.toUpperCase(), extensions: [extensions[format]] }],
     });
     if (!path) return;
     try {
       await api.exportCommits(visible, format, path);
-      notify(`Exported ${visible.length} commits to ${path}`);
+      notify(t("app.exported", { count: visible.length, path }));
     } catch (e) {
-      notify(`Export failed: ${errorMessage(e)}`, true);
+      notify(t("app.exportFailed", { error: fail(e) }), true);
     }
   };
 
@@ -229,7 +244,7 @@ export default function App() {
       setShowChanges(true);
       setDialog(null);
     } catch (e) {
-      setDialogError(errorMessage(e));
+      setDialogError(fail(e));
     } finally {
       setSessionBusy(false);
     }
@@ -241,7 +256,7 @@ export default function App() {
     try {
       setSession(await action());
     } catch (e) {
-      setSessionError(errorMessage(e));
+      setSessionError(fail(e));
     } finally {
       setSessionBusy(false);
     }
@@ -249,11 +264,11 @@ export default function App() {
 
   const abort = async () => {
     if (!session) return;
-    const confirmed = await ask(`The worktree and the local branch ${session.branch} will be deleted. Commits already applied there are discarded.`, {
-      title: "Abort cherry-pick?",
+    const confirmed = await ask(t("app.abortBody", { branch: session.branch }), {
+      title: t("app.abortTitle"),
       kind: "warning",
-      okLabel: "Abort",
-      cancelLabel: "Keep working",
+      okLabel: t("common.abort"),
+      cancelLabel: t("app.abortKeep"),
     });
     if (!confirmed) return;
     setSessionBusy(true);
@@ -261,9 +276,9 @@ export default function App() {
       const s = await api.abortCherryPick();
       setSession(null);
       setRightPane("detail");
-      notify(s.warnings.length ? `Aborted with warnings: ${s.warnings.join("; ")}` : "Cherry-pick aborted and cleaned up");
+      notify(s.warnings.length ? t("app.abortedWarnings", { warnings: s.warnings.map(te).join("; ") }) : t("app.aborted"));
     } catch (e) {
-      setSessionError(errorMessage(e));
+      setSessionError(fail(e));
     } finally {
       setSessionBusy(false);
     }
@@ -277,7 +292,7 @@ export default function App() {
       setRightPane("detail");
       setReloadKey((k) => k + 1);
     } catch (e) {
-      setSessionError(errorMessage(e));
+      setSessionError(fail(e));
     }
   };
 
@@ -288,7 +303,7 @@ export default function App() {
       setDialog(null);
       setDialogError(null);
     } catch (e) {
-      setDialogError(errorMessage(e));
+      setDialogError(fail(e));
     }
   };
 
@@ -333,9 +348,9 @@ export default function App() {
         {sessionLoadError && (
           <div className="notice error" role="alert">
             <TriangleAlert size={16} />
-            <span className="grow">The saved cherry-pick session could not be read: {sessionLoadError}</span>
+            <span className="grow">{t("app.sessionUnreadable", { error: sessionLoadError })}</span>
             <button className="btn" onClick={dismiss}>
-              Discard saved session
+              {t("app.discardSession")}
             </button>
           </div>
         )}
@@ -391,9 +406,9 @@ export default function App() {
           {fetchError && (
             <div className="notice warn" role="status">
               <TriangleAlert size={16} />
-              <span className="grow">Fetch failed, showing the last known state: {fetchError}</span>
+              <span className="grow">{t("app.fetchFailed", { error: fetchError })}</span>
               <button className="btn ghost" onClick={fetchNow}>
-                Retry
+                {t("common.retry")}
               </button>
             </div>
           )}
@@ -406,15 +421,15 @@ export default function App() {
           {list?.truncated && (
             <div className="notice warn" role="status">
               <TriangleAlert size={16} />
-              <span className="grow">Only the newest 5,000 matching commits are shown. Narrow the filters to see older ones.</span>
+              <span className="grow">{t("app.truncated")}</span>
             </div>
           )}
           {!loading && !listError && visible.length === 0 ? (
             <div className="placeholder">
-              <h2>No commits match</h2>
-              <p>{filters.target ? `Everything in ${source} matching these filters is already in ${filters.target}.` : "Clear or change the filters to see more history."}</p>
+              <h2>{t("app.noMatchTitle")}</h2>
+              <p>{filters.target ? t("app.noMatchTarget", { source: source ?? "", target: filters.target }) : t("app.noMatchBody")}</p>
               <button className="btn" onClick={() => setFilters(emptyFilters)}>
-                Clear filters
+                {t("app.clearFilters")}
               </button>
             </div>
           ) : (
@@ -431,14 +446,14 @@ export default function App() {
             />
           )}
         </main>
-        <aside className="detail" aria-label="Details" hidden={!showChanges}>
+        <aside className="detail" aria-label={t("detail.label")} hidden={!showChanges}>
           {session && (
-            <div className="filters" role="tablist" aria-label="Right pane" style={{ display: "flex", gap: 4, padding: "6px 12px" }}>
+            <div className="filters" role="tablist" aria-label={t("app.rightPane")} style={{ display: "flex", gap: 4, padding: "6px 12px" }}>
               <button role="tab" aria-selected={rightPane === "session"} className={`btn ${rightPane === "session" ? "" : "ghost"}`} onClick={() => setRightPane("session")}>
-                Cherry-pick session
+                {t("app.tabSession")}
               </button>
               <button role="tab" aria-selected={rightPane === "detail"} className={`btn ${rightPane === "detail" ? "" : "ghost"}`} onClick={() => setRightPane("detail")}>
-                Commit detail
+                {t("app.tabDetail")}
               </button>
             </div>
           )}
@@ -447,13 +462,13 @@ export default function App() {
               session={session}
               busy={sessionBusy}
               error={sessionError}
-              onOpenEditor={() => api.openInEditor(session.worktree).catch((e) => setSessionError(errorMessage(e)))}
+              onOpenEditor={() => api.openInEditor(session.worktree).catch((e) => setSessionError(fail(e)))}
               onContinue={() => runSession(api.continueCherryPick)}
               onSkip={() => runSession(api.skipCommit)}
               onRetryPush={() => runSession(api.retryPush)}
               onAbort={abort}
               onDismiss={dismiss}
-              onCopy={(text) => navigator.clipboard.writeText(text).then(() => notify("Branch name copied"))}
+              onCopy={(text) => navigator.clipboard.writeText(text).then(() => notify(t("app.copied")))}
             />
           ) : (
             <CommitDetail commit={active} stat={detail?.stat ?? null} diff={detail?.diff ?? null} loading={detailLoading} error={detailError} />

@@ -1,0 +1,434 @@
+import { createContext, createElement, useContext, useMemo, type ReactNode } from "react";
+
+export type Lang = "en" | "es";
+export type LangSetting = "auto" | Lang;
+
+const en = {
+  "common.cancel": "Cancel",
+  "common.save": "Save",
+  "common.done": "Done",
+  "common.abort": "Abort",
+  "common.retry": "Retry",
+
+  "start.intro": "Open a local repository to browse branch history, export it, or cherry-pick commits onto another branch.",
+  "start.open": "Open repository…",
+  "start.opening": "Opening and fetching…",
+  "start.recent": "Recent",
+  "start.recentLabel": "Recent repositories",
+
+  "toolbar.noBranch": "No branch selected",
+  "toolbar.open": "Open",
+  "toolbar.openTitle": "Open another repository (Ctrl+O)",
+  "toolbar.fetch": "Fetch",
+  "toolbar.fetching": "Fetching…",
+  "toolbar.fetchTitle": "Fetch all remotes (F5)",
+  "toolbar.export": "Export",
+  "toolbar.exportTitle": "Export the commits shown in the list",
+  "toolbar.exportXlsx": "Excel workbook (.xlsx)",
+  "toolbar.exportCsv": "CSV (.csv)",
+  "toolbar.exportMd": "Markdown table (.md)",
+  "toolbar.sessionInProgress": "Session in progress",
+  "toolbar.cherryPick": "Cherry-pick…",
+  "toolbar.cherryPick1": "Cherry-pick 1 commit…",
+  "toolbar.cherryPickN": "Cherry-pick {count} commits…",
+  "toolbar.cherryPickTitle": "Cherry-pick the selected commits (Ctrl+Enter)",
+  "toolbar.hideChanges": "Hide changes panel",
+  "toolbar.showChanges": "Show changes panel",
+  "toolbar.settings": "Settings",
+  "reason.sessionActive": "Finish or abort the current cherry-pick first",
+  "reason.noSelection": "Select the commits to cherry-pick first",
+
+  "sidebar.label": "Branches",
+  "sidebar.filter": "Filter branches",
+  "sidebar.remote": "Remote",
+  "sidebar.local": "Local",
+  "sidebar.none": "None",
+
+  "filters.label": "Filter commits",
+  "filters.message": "Message",
+  "filters.messagePlaceholder": "Text in subject or body",
+  "filters.ticket": "Ticket",
+  "filters.author": "Author",
+  "filters.from": "From",
+  "filters.to": "To",
+  "filters.missingFrom": "Missing from",
+  "filters.anyBranch": "Any branch (full history)",
+  "filters.hideApplied": "Hide already in target",
+  "filters.hideAppliedHint": "Choose a branch in Missing from first",
+  "filters.hideMerges": "Hide merge commits",
+  "filters.loading": "Loading…",
+  "filters.count1": "1 commit",
+  "filters.countN": "{count} commits",
+  "filters.selected": "{count} selected",
+
+  "authors.label": "Authors",
+  "authors.any": "Any author",
+  "authors.n": "{count} authors",
+  "authors.search": "Search authors",
+  "authors.none": "No authors match",
+  "authors.selected": "{count} selected",
+  "authors.clear": "Clear",
+
+  "list.label": "Commits",
+  "list.subject": "Subject",
+  "list.author": "Author",
+  "list.authorStatus": "Author · status",
+  "list.hash": "Hash",
+  "list.date": "Date",
+  "list.select": "Select {hash}",
+  "list.mergeDisabled": "Merge commits cannot be cherry-picked",
+  "list.badgeMerge": "merge",
+  "list.badgeInTarget": "in target",
+
+  "detail.label": "Commit detail",
+  "detail.noneTitle": "No commit selected",
+  "detail.noneBody": "Move through the list with J/K or the arrow keys, and select with Space.",
+  "detail.loadError": "Could not load this commit: {error}",
+  "detail.changedFiles": "Changed files",
+  "detail.files1": "1 file changed",
+  "detail.filesN": "{count} files changed",
+  "detail.binary": "binary",
+  "detail.truncated": "This diff is larger than 2 MB and is cut off.",
+  "detail.diff": "Diff",
+
+  "status.applied": "Applied",
+  "status.empty": "Already there",
+  "status.skipped": "Skipped",
+  "status.conflict": "Conflict",
+  "status.failed": "Error",
+  "status.working": "Applying",
+  "status.pending": "Pending",
+
+  "session.label": "Cherry-pick session",
+  "session.into": "Cherry-pick into {target}",
+  "session.commitOf": "Commit {n} of {total}",
+  "session.commits": "{count} commits",
+  "session.applied": "{count} applied",
+  "session.empty": "{count} already there",
+  "session.skipped": "{count} skipped",
+  "session.pending": "{count} pending",
+  "session.applying": "Applying commits…",
+  "session.interrupted": "Interrupted",
+  "session.interruptedBody": "This session stopped before finishing, for example because the app was closed. Resume it or abort and clean up.",
+  "session.resume": "Resume",
+  "session.conflictIn": "Conflict in {hash}",
+  "session.conflictBody": "Resolve these files in the worktree, then continue. You can also stage and commit from your editor; Continue picks that up.",
+  "session.conflictedFiles": "Conflicted files",
+  "session.openEditor": "Open in editor",
+  "session.continue": "Continue",
+  "session.skip": "Skip commit",
+  "session.failedOn": "git stopped on {hash}",
+  "session.nothingTitle": "Nothing to push",
+  "session.nothingBody": "Every selected change was already in {target} or was skipped, so no branch was created.",
+  "session.pushed": "Pushed {branch}",
+  "session.pushedBody": "Open a pull request from this branch into {target} in your git host.",
+  "session.copyBranch": "Copy branch name",
+  "session.pushFailed": "Push failed",
+  "session.pushFailedBody": "The commits are safe in the worktree. Fix the problem (credentials, network) and retry.",
+  "session.retryPush": "Retry push",
+  "session.warnings": "Warnings",
+
+  "dialog.title1": "Cherry-pick 1 commit",
+  "dialog.titleN": "Cherry-pick {count} commits",
+  "dialog.description": "From {source}. Runs in a separate worktree; your working copy is not touched.",
+  "dialog.onto": "Onto branch",
+  "dialog.local": "(local)",
+  "dialog.localHint": "Local branches are not updated by fetch. Prefer the remote branch to start from the latest state.",
+  "dialog.newBranch": "New branch to create and push",
+  "dialog.newBranchHint": "From the template in Settings. Open the pull request yourself after the push.",
+  "dialog.order": "Order of application (oldest first, with -x)",
+  "dialog.alreadyThere": "{count} of these look already applied in the compared branch; they will be reported as “Already there” if nothing changes.",
+  "dialog.start": "Start cherry-pick",
+  "dialog.starting": "Fetching and applying…",
+
+  "settings.title": "Settings",
+  "settings.language": "Language",
+  "settings.langAuto": "Automatic (system language)",
+  "settings.ticket": "Ticket pattern (regular expression)",
+  "settings.ticketHint": "Extracts ticket ids from commit messages for the Ticket filter and exports. Default: [A-Z]+-\\d+",
+  "settings.template": "Branch name template",
+  "settings.templateHint": "Placeholders: {target} (without origin/), {date} (YYYYMMDD), {ticket} (first ticket of the selection).",
+  "settings.editor": "Editor command",
+  "settings.editorHint": "Program used by “Open in editor”, found in PATH. Example: code, cursor, idea64.",
+
+  "app.openTitle": "Open a git repository",
+  "app.exportTitle": "Export commits",
+  "app.exported": "Exported {count} commits to {path}",
+  "app.exportFailed": "Export failed: {error}",
+  "app.abortTitle": "Abort cherry-pick?",
+  "app.abortBody": "The worktree and the local branch {branch} will be deleted. Commits already applied there are discarded.",
+  "app.abortKeep": "Keep working",
+  "app.aborted": "Cherry-pick aborted and cleaned up",
+  "app.abortedWarnings": "Aborted with warnings: {warnings}",
+  "app.copied": "Branch name copied",
+  "app.sessionUnreadable": "The saved cherry-pick session could not be read: {error}",
+  "app.discardSession": "Discard saved session",
+  "app.fetchFailed": "Fetch failed, showing the last known state: {error}",
+  "app.truncated": "Only the newest 5,000 matching commits are shown. Narrow the filters to see older ones.",
+  "app.noMatchTitle": "No commits match",
+  "app.noMatchTarget": "Everything in {source} matching these filters is already in {target}.",
+  "app.noMatchBody": "Clear or change the filters to see more history.",
+  "app.clearFilters": "Clear filters",
+  "app.rightPane": "Right pane",
+  "app.tabSession": "Cherry-pick session",
+  "app.tabDetail": "Commit detail",
+};
+
+export type Key = keyof typeof en;
+
+const es: Record<Key, string> = {
+  "common.cancel": "Cancelar",
+  "common.save": "Guardar",
+  "common.done": "Listo",
+  "common.abort": "Abortar",
+  "common.retry": "Reintentar",
+
+  "start.intro": "Abre un repositorio local para ver el historial de una rama, exportarlo o hacer cherry-pick de commits a otra rama.",
+  "start.open": "Abrir repositorio…",
+  "start.opening": "Abriendo y haciendo fetch…",
+  "start.recent": "Recientes",
+  "start.recentLabel": "Repositorios recientes",
+
+  "toolbar.noBranch": "Ninguna rama seleccionada",
+  "toolbar.open": "Abrir",
+  "toolbar.openTitle": "Abrir otro repositorio (Ctrl+O)",
+  "toolbar.fetch": "Fetch",
+  "toolbar.fetching": "Haciendo fetch…",
+  "toolbar.fetchTitle": "Hacer fetch de todos los remotos (F5)",
+  "toolbar.export": "Exportar",
+  "toolbar.exportTitle": "Exportar los commits que muestra la lista",
+  "toolbar.exportXlsx": "Libro de Excel (.xlsx)",
+  "toolbar.exportCsv": "CSV (.csv)",
+  "toolbar.exportMd": "Tabla Markdown (.md)",
+  "toolbar.sessionInProgress": "Sesión en curso",
+  "toolbar.cherryPick": "Cherry-pick…",
+  "toolbar.cherryPick1": "Cherry-pick de 1 commit…",
+  "toolbar.cherryPickN": "Cherry-pick de {count} commits…",
+  "toolbar.cherryPickTitle": "Hacer cherry-pick de los commits seleccionados (Ctrl+Enter)",
+  "toolbar.hideChanges": "Ocultar panel de cambios",
+  "toolbar.showChanges": "Mostrar panel de cambios",
+  "toolbar.settings": "Configuración",
+  "reason.sessionActive": "Termina o aborta el cherry-pick en curso primero",
+  "reason.noSelection": "Selecciona primero los commits para el cherry-pick",
+
+  "sidebar.label": "Ramas",
+  "sidebar.filter": "Filtrar ramas",
+  "sidebar.remote": "Remotas",
+  "sidebar.local": "Locales",
+  "sidebar.none": "Ninguna",
+
+  "filters.label": "Filtrar commits",
+  "filters.message": "Mensaje",
+  "filters.messagePlaceholder": "Texto en el asunto o el cuerpo",
+  "filters.ticket": "Ticket",
+  "filters.author": "Autor",
+  "filters.from": "Desde",
+  "filters.to": "Hasta",
+  "filters.missingFrom": "Faltan en",
+  "filters.anyBranch": "Cualquier rama (historial completo)",
+  "filters.hideApplied": "Ocultar los que ya están en destino",
+  "filters.hideAppliedHint": "Elige primero una rama en Faltan en",
+  "filters.hideMerges": "Ocultar merge commits",
+  "filters.loading": "Cargando…",
+  "filters.count1": "1 commit",
+  "filters.countN": "{count} commits",
+  "filters.selected": "{count} seleccionados",
+
+  "authors.label": "Autores",
+  "authors.any": "Cualquier autor",
+  "authors.n": "{count} autores",
+  "authors.search": "Buscar autores",
+  "authors.none": "Ningún autor coincide",
+  "authors.selected": "{count} seleccionados",
+  "authors.clear": "Limpiar",
+
+  "list.label": "Commits",
+  "list.subject": "Asunto",
+  "list.author": "Autor",
+  "list.authorStatus": "Autor · estado",
+  "list.hash": "Hash",
+  "list.date": "Fecha",
+  "list.select": "Seleccionar {hash}",
+  "list.mergeDisabled": "Los merge commits no se pueden cherry-pickear",
+  "list.badgeMerge": "merge",
+  "list.badgeInTarget": "en destino",
+
+  "detail.label": "Detalle del commit",
+  "detail.noneTitle": "Ningún commit seleccionado",
+  "detail.noneBody": "Recorre la lista con J/K o las flechas y selecciona con Espacio.",
+  "detail.loadError": "No se pudo cargar este commit: {error}",
+  "detail.changedFiles": "Archivos modificados",
+  "detail.files1": "1 archivo modificado",
+  "detail.filesN": "{count} archivos modificados",
+  "detail.binary": "binario",
+  "detail.truncated": "Este diff supera los 2 MB y está recortado.",
+  "detail.diff": "Diff",
+
+  "status.applied": "Aplicado",
+  "status.empty": "Ya estaba",
+  "status.skipped": "Omitido",
+  "status.conflict": "Conflicto",
+  "status.failed": "Error",
+  "status.working": "Aplicando",
+  "status.pending": "Pendiente",
+
+  "session.label": "Sesión de cherry-pick",
+  "session.into": "Cherry-pick a {target}",
+  "session.commitOf": "Commit {n} de {total}",
+  "session.commits": "{count} commits",
+  "session.applied": "{count} aplicados",
+  "session.empty": "{count} ya estaban",
+  "session.skipped": "{count} omitidos",
+  "session.pending": "{count} pendientes",
+  "session.applying": "Aplicando commits…",
+  "session.interrupted": "Interrumpida",
+  "session.interruptedBody": "Esta sesión se detuvo antes de terminar, por ejemplo porque se cerró la app. Retómala o abórtala y limpia.",
+  "session.resume": "Retomar",
+  "session.conflictIn": "Conflicto en {hash}",
+  "session.conflictBody": "Resuelve estos archivos en el worktree y continúa. También puedes hacer stage y commit desde tu editor; Continuar lo detecta.",
+  "session.conflictedFiles": "Archivos en conflicto",
+  "session.openEditor": "Abrir en el editor",
+  "session.continue": "Continuar",
+  "session.skip": "Omitir commit",
+  "session.failedOn": "git se detuvo en {hash}",
+  "session.nothingTitle": "Nada para hacer push",
+  "session.nothingBody": "Todos los cambios seleccionados ya estaban en {target} o se omitieron, así que no se creó ninguna rama.",
+  "session.pushed": "Push de {branch} realizado",
+  "session.pushedBody": "Abre un pull request de esta rama hacia {target} en tu servidor git.",
+  "session.copyBranch": "Copiar nombre de la rama",
+  "session.pushFailed": "Falló el push",
+  "session.pushFailedBody": "Los commits están a salvo en el worktree. Corrige el problema (credenciales, red) y reintenta.",
+  "session.retryPush": "Reintentar push",
+  "session.warnings": "Advertencias",
+
+  "dialog.title1": "Cherry-pick de 1 commit",
+  "dialog.titleN": "Cherry-pick de {count} commits",
+  "dialog.description": "Desde {source}. Se ejecuta en un worktree aparte; tu copia de trabajo no se toca.",
+  "dialog.onto": "Rama de destino",
+  "dialog.local": "(local)",
+  "dialog.localHint": "El fetch no actualiza las ramas locales. Usa la rama remota para partir del estado más reciente.",
+  "dialog.newBranch": "Rama nueva a crear y pushear",
+  "dialog.newBranchHint": "Según la plantilla de Configuración. Abre el pull request tú mismo después del push.",
+  "dialog.order": "Orden de aplicación (del más antiguo al más nuevo, con -x)",
+  "dialog.alreadyThere": "{count} parecen estar ya aplicados en la rama comparada; si no cambia nada se informarán como “Ya estaba”.",
+  "dialog.start": "Iniciar cherry-pick",
+  "dialog.starting": "Haciendo fetch y aplicando…",
+
+  "settings.title": "Configuración",
+  "settings.language": "Idioma",
+  "settings.langAuto": "Automático (idioma del sistema)",
+  "settings.ticket": "Patrón de ticket (expresión regular)",
+  "settings.ticketHint": "Extrae los ids de ticket de los mensajes de commit para el filtro Ticket y las exportaciones. Por defecto: [A-Z]+-\\d+",
+  "settings.template": "Plantilla del nombre de rama",
+  "settings.templateHint": "Variables: {target} (sin origin/), {date} (AAAAMMDD), {ticket} (primer ticket de la selección).",
+  "settings.editor": "Comando del editor",
+  "settings.editorHint": "Programa que usa “Abrir en el editor”, buscado en el PATH. Ejemplo: code, cursor, idea64.",
+
+  "app.openTitle": "Abrir un repositorio git",
+  "app.exportTitle": "Exportar commits",
+  "app.exported": "Se exportaron {count} commits a {path}",
+  "app.exportFailed": "Falló la exportación: {error}",
+  "app.abortTitle": "¿Abortar el cherry-pick?",
+  "app.abortBody": "Se eliminarán el worktree y la rama local {branch}. Los commits ya aplicados ahí se descartan.",
+  "app.abortKeep": "Seguir trabajando",
+  "app.aborted": "Cherry-pick abortado y limpiado",
+  "app.abortedWarnings": "Abortado con advertencias: {warnings}",
+  "app.copied": "Nombre de la rama copiado",
+  "app.sessionUnreadable": "No se pudo leer la sesión de cherry-pick guardada: {error}",
+  "app.discardSession": "Descartar la sesión guardada",
+  "app.fetchFailed": "Falló el fetch; se muestra el último estado conocido: {error}",
+  "app.truncated": "Solo se muestran los 5.000 commits más nuevos que coinciden. Ajusta los filtros para ver los más antiguos.",
+  "app.noMatchTitle": "Ningún commit coincide",
+  "app.noMatchTarget": "Todo lo de {source} que coincide con estos filtros ya está en {target}.",
+  "app.noMatchBody": "Limpia o cambia los filtros para ver más historial.",
+  "app.clearFilters": "Limpiar filtros",
+  "app.rightPane": "Panel derecho",
+  "app.tabSession": "Sesión de cherry-pick",
+  "app.tabDetail": "Detalle del commit",
+};
+
+export const messages: Record<Lang, Record<Key, string>> = { en, es };
+
+/** Language names are shown in their own language, so they are not translated. */
+export const languageNames: Record<Lang, string> = { en: "English", es: "Español" };
+
+export type Params = Record<string, string | number>;
+
+export function translate(lang: Lang, key: Key, params?: Params): string {
+  const text = messages[lang][key] ?? messages.en[key];
+  return params ? text.replace(/\{(\w+)\}/g, (m, name: string) => (name in params ? String(params[name]) : m)) : text;
+}
+
+export function resolveLang(setting: string, systemLanguage: string): Lang {
+  if (setting === "en" || setting === "es") return setting;
+  return systemLanguage.toLowerCase().startsWith("es") ? "es" : "en";
+}
+
+// Messages produced by the Rust backend. git's own output inside them stays verbatim.
+const backendErrors: [RegExp, string][] = [
+  [/^git is not installed or not in PATH: (.*)$/s, "git no está instalado o no está en el PATH: $1"],
+  [/^git (.+?) failed: (.*)$/s, "git $1 falló: $2"],
+  [/^not a git repository: (.*)$/s, "No es un repositorio git: $1"],
+  [/^source branch is required$/, "Falta la rama de origen"],
+  [/^invalid ticket pattern: (.*)$/s, "Patrón de ticket inválido: $1"],
+  [/^invalid branch name: '(.*)'$/s, "Nombre de rama inválido: '$1'"],
+  [/^there is no active cherry-pick session$/, "No hay ninguna sesión de cherry-pick activa"],
+  [/^another cherry-pick session is in progress$/, "Ya hay otra sesión de cherry-pick en curso"],
+  [/^select at least one commit$/, "Selecciona al menos un commit"],
+  [/^branch '(.*)' already exists on the remote$/s, "La rama '$1' ya existe en el remoto"],
+  [/^branch '(.*)' already exists$/s, "La rama '$1' ya existe"],
+  [/^unknown commit: (.*)$/s, "Commit desconocido: $1"],
+  [/^merge commits cannot be cherry-picked: (.*)$/s, "Los merge commits no se pueden cherry-pickear: $1"],
+  [/^the session is not waiting on a conflict$/, "La sesión no está esperando la resolución de un conflicto"],
+  [
+    /^no cherry-pick in progress: it was aborted outside the app, use Skip or Abort$/,
+    "No hay un cherry-pick en curso: se abortó fuera de la app. Usa Omitir commit o Abortar",
+  ],
+  [/^unresolved conflict markers in: (.*)$/s, "Quedan marcadores de conflicto sin resolver en: $1"],
+  [/^files still unmerged: (.*)$/s, "Archivos todavía sin fusionar: $1"],
+  [/^there is nothing to skip$/, "No hay nada para omitir"],
+  [/^the session has not finished applying commits$/, "La sesión todavía no terminó de aplicar los commits"],
+  [/^the session is still active$/, "La sesión todavía está activa"],
+  [/^could not launch '(.*?)': (.*)$/s, "No se pudo abrir '$1': $2"],
+  [/^editor '(.*)' was not found in PATH$/s, "No se encontró el editor '$1' en el PATH"],
+  [/^no remote configured$/, "No hay ningún remoto configurado"],
+  [/^could not remove worktree (.*?): (.*)$/s, "No se pudo eliminar el worktree $1: $2"],
+  [/^could not delete branch (.*?): (.*)$/s, "No se pudo eliminar la rama $1: $2"],
+  [/^io error: (.*)$/s, "Error de E/S: $1"],
+  [/^serialization error: (.*)$/s, "Error de formato: $1"],
+  [/^export error: (.*)$/s, "Error al exportar: $1"],
+];
+
+/** Translates a known backend message; anything else is returned unchanged. */
+export function translateError(lang: Lang, message: string): string {
+  if (lang === "en") return message;
+  for (const [pattern, template] of backendErrors) {
+    if (pattern.test(message)) return message.replace(pattern, template);
+  }
+  return message;
+}
+
+interface I18n {
+  lang: Lang;
+  t: (key: Key, params?: Params) => string;
+  /** Translates an error message coming from the backend. */
+  te: (message: string) => string;
+}
+
+const I18nContext = createContext<I18n>({
+  lang: "en",
+  t: (key, params) => translate("en", key, params),
+  te: (message) => message,
+});
+
+export function I18nProvider({ setting, children }: { setting: string; children: ReactNode }) {
+  const value = useMemo<I18n>(() => {
+    const lang = resolveLang(setting, typeof navigator === "undefined" ? "en" : navigator.language);
+    return { lang, t: (key, params) => translate(lang, key, params), te: (message) => translateError(lang, message) };
+  }, [setting]);
+  return createElement(I18nContext.Provider, { value }, children);
+}
+
+export function useI18n(): I18n {
+  return useContext(I18nContext);
+}

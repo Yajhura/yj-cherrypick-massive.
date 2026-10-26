@@ -88,6 +88,7 @@ fn settings_default_roundtrip_and_recents() {
     let mut settings = store.load();
     assert_eq!(settings, Settings::default());
     assert_eq!(settings.ticket_pattern, r"[A-Z]+-\d+");
+    assert_eq!(settings.language, "auto");
 
     for i in 0..12 {
         settings.add_recent(&format!("C:/repo{i}"));
@@ -99,4 +100,14 @@ fn settings_default_roundtrip_and_recents() {
 
     store.save(&settings).unwrap();
     assert_eq!(store.load(), settings);
+}
+
+#[test]
+fn settings_written_before_language_existed_still_load() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("settings.json");
+    std::fs::write(&path, r#"{"recentRepos":["C:/r"],"ticketPattern":"X-\\d+","branchTemplate":"b/{date}","editorCommand":"code"}"#).unwrap();
+    let settings = SettingsStore::new(path).load();
+    assert_eq!(settings.recent_repos, ["C:/r"]);
+    assert_eq!(settings.language, "auto");
 }

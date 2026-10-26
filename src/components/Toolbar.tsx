@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Cherry, Download, FileSpreadsheet, FileText, FolderOpen, PanelRightClose, PanelRightOpen, RefreshCw, Settings, Table } from "lucide-react";
 import { ExportFormat } from "../api";
+import { Key, useI18n } from "../i18n";
 
 interface Props {
   repoRoot: string;
@@ -19,10 +20,10 @@ interface Props {
   onToggleChanges: () => void;
 }
 
-const formats: { format: ExportFormat; label: string; Icon: typeof Table }[] = [
-  { format: "xlsx", label: "Excel workbook (.xlsx)", Icon: FileSpreadsheet },
-  { format: "csv", label: "CSV (.csv)", Icon: Table },
-  { format: "markdown", label: "Markdown table (.md)", Icon: FileText },
+const formats: { format: ExportFormat; label: Key; Icon: typeof Table }[] = [
+  { format: "xlsx", label: "toolbar.exportXlsx", Icon: FileSpreadsheet },
+  { format: "csv", label: "toolbar.exportCsv", Icon: Table },
+  { format: "markdown", label: "toolbar.exportMd", Icon: FileText },
 ];
 
 function repoName(root: string) {
@@ -30,12 +31,16 @@ function repoName(root: string) {
 }
 
 export function Toolbar(props: Props) {
+  const { t } = useI18n();
   const { repoRoot, branch, fetching, selectedCount, sessionActive, visibleCount, cherryPickDisabledReason } = props;
   const cherryPickLabel = sessionActive
-    ? "Session in progress"
-    : selectedCount > 0
-      ? `Cherry-pick ${selectedCount} commit${selectedCount === 1 ? "" : "s"}…`
-      : "Cherry-pick…";
+    ? t("toolbar.sessionInProgress")
+    : selectedCount === 1
+      ? t("toolbar.cherryPick1")
+      : selectedCount > 1
+        ? t("toolbar.cherryPickN", { count: selectedCount })
+        : t("toolbar.cherryPick");
+  const changesLabel = props.showChanges ? t("toolbar.hideChanges") : t("toolbar.showChanges");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -52,13 +57,13 @@ export function Toolbar(props: Props) {
     <header className="toolbar">
       <div className="repo">
         <b>{repoName(repoRoot)}</b>
-        <small title={repoRoot}>{branch ?? "No branch selected"}</small>
+        <small title={repoRoot}>{branch ?? t("toolbar.noBranch")}</small>
       </div>
-      <button className="btn" onClick={props.onOpenRepo} title="Open another repository (Ctrl+O)">
-        <FolderOpen size={16} /> Open
+      <button className="btn" onClick={props.onOpenRepo} title={t("toolbar.openTitle")}>
+        <FolderOpen size={16} /> {t("toolbar.open")}
       </button>
-      <button className="btn" onClick={props.onFetch} disabled={fetching} title="Fetch all remotes (F5)">
-        <RefreshCw size={16} className={fetching ? "spin" : undefined} /> {fetching ? "Fetching…" : "Fetch"}
+      <button className="btn" onClick={props.onFetch} disabled={fetching} title={t("toolbar.fetchTitle")}>
+        <RefreshCw size={16} className={fetching ? "spin" : undefined} /> {fetching ? t("toolbar.fetching") : t("toolbar.fetch")}
       </button>
       <div className="spacer" />
       <div className="menu-wrap" ref={menuRef}>
@@ -68,9 +73,9 @@ export function Toolbar(props: Props) {
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((o) => !o)}
-          title="Export the commits shown in the list"
+          title={t("toolbar.exportTitle")}
         >
-          <Download size={16} /> Export {visibleCount > 0 ? visibleCount : ""} <ChevronDown size={14} />
+          <Download size={16} /> {t("toolbar.export")} {visibleCount > 0 ? visibleCount : ""} <ChevronDown size={14} />
         </button>
         {menuOpen && (
           <div className="menu" role="menu" onKeyDown={(e) => e.key === "Escape" && setMenuOpen(false)}>
@@ -84,7 +89,7 @@ export function Toolbar(props: Props) {
                   props.onExport(format);
                 }}
               >
-                <Icon size={16} /> {label}
+                <Icon size={16} /> {t(label)}
               </button>
             ))}
           </div>
@@ -94,7 +99,7 @@ export function Toolbar(props: Props) {
         className="btn primary"
         onClick={props.onCherryPick}
         disabled={cherryPickDisabledReason !== null}
-        title={cherryPickDisabledReason ?? "Cherry-pick the selected commits (Ctrl+Enter)"}
+        title={cherryPickDisabledReason ?? t("toolbar.cherryPickTitle")}
         aria-describedby={cherryPickDisabledReason ? "cherry-pick-reason" : undefined}
       >
         <Cherry size={16} />
@@ -109,12 +114,12 @@ export function Toolbar(props: Props) {
         className="btn ghost icon-btn"
         onClick={props.onToggleChanges}
         aria-pressed={props.showChanges}
-        aria-label={props.showChanges ? "Hide changes panel" : "Show changes panel"}
-        title={`${props.showChanges ? "Hide" : "Show"} changes panel (Ctrl+D)`}
+        aria-label={changesLabel}
+        title={`${changesLabel} (Ctrl+D)`}
       >
         {props.showChanges ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
       </button>
-      <button className="btn ghost icon-btn" onClick={props.onSettings} aria-label="Settings" title="Settings">
+      <button className="btn ghost icon-btn" onClick={props.onSettings} aria-label={t("toolbar.settings")} title={t("toolbar.settings")}>
         <Settings size={16} />
       </button>
     </header>
