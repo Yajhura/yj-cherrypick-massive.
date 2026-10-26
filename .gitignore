@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Impeccable working files (keep config.json and surfaces/)
+.impeccable/mocks/
+.impeccable/review/
+.impeccable/questions/
+.impeccable/hook.cache.json

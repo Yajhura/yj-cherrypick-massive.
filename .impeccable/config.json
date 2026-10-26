@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/model-pick.html"
+        ],
+        "createdAt": "2026-10-26T02:30:40.028Z",
+        "reason": "model: track-diagram panel in a decision sketch; labels are positioned diagram annotations, not padded text"
+      }
+    ]
+  }
+}
