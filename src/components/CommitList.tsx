@@ -11,6 +11,8 @@ interface Props {
   activeIndex: number;
   onActivate: (index: number) => void;
   onToggle: (commit: Commit) => void;
+  /** Selects every selectable commit between two rows, both included (Shift+click). */
+  onSelectRange: (from: number, to: number) => void;
   onSelectAll: () => void;
   onClearSelection: () => void;
 }
@@ -30,11 +32,28 @@ export function formatDate(iso: string) {
 }
 
 export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
-  { commits, sessionStatus, selected, activeIndex, onActivate, onToggle, onSelectAll, onClearSelection },
+  { commits, sessionStatus, selected, activeIndex, onActivate, onToggle, onSelectRange, onSelectAll, onClearSelection },
   ref,
 ) {
   const { t } = useI18n();
   const activeRow = useRef<HTMLDivElement>(null);
+  // Row of the last plain toggle: Shift+click selects from here.
+  const anchor = useRef<number | null>(null);
+
+  useEffect(() => {
+    anchor.current = null;
+  }, [commits]);
+
+  const toggleAt = (i: number, shift: boolean) => {
+    const c = commits[i];
+    onActivate(i);
+    if (shift && anchor.current !== null) {
+      onSelectRange(anchor.current, i);
+    } else if (c && isSelectable(c)) {
+      anchor.current = i;
+      onToggle(c);
+    }
+  };
 
   useEffect(() => {
     activeRow.current?.scrollIntoView({ block: "nearest" });
@@ -62,12 +81,10 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
       case "PageUp":
         return move(activeIndex - 15);
       case " ":
-      case "x": {
+      case "x":
         e.preventDefault();
-        const c = commits[activeIndex];
-        if (c && isSelectable(c)) onToggle(c);
+        toggleAt(activeIndex, e.shiftKey);
         return;
-      }
       case "a":
         if (e.ctrlKey) {
           e.preventDefault();
@@ -113,7 +130,7 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
             aria-selected={isSelected}
             aria-disabled={!selectable}
             className={`row${i === activeIndex ? " active" : ""}${selectable ? "" : " disabled"}`}
-            onClick={() => onActivate(i)}
+            onClick={(e) => (e.shiftKey ? toggleAt(i, true) : onActivate(i))}
           >
             <input
               type="checkbox"
@@ -122,11 +139,11 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
               checked={isSelected}
               disabled={!selectable}
               title={selectable ? undefined : t("list.mergeDisabled")}
-              onClick={(e) => e.stopPropagation()}
-              onChange={() => {
-                onActivate(i);
-                onToggle(c);
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleAt(i, e.shiftKey);
               }}
+              onChange={() => undefined}
             />
             <span className="subject">
               {/* Tickets already in the subject are not repeated; body-only ones surface here. */}

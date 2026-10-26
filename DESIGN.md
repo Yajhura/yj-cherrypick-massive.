@@ -1,6 +1,6 @@
 ---
 name: Cherrypick Masive
-description: A three-pane Windows git client where a batch cherry-pick is a visible, resumable session.
+description: A Windows git client with History and Cherry-pick tabs, where a batch cherry-pick is a visible, resumable session.
 colors:
   ground: "#f6f7f9"
   pane: "#ffffff"
@@ -172,9 +172,9 @@ components:
 
 **Creative North Star: "The Workbench Git Client"**
 
-Cherrypick Masive is the category standard on purpose: a three-pane git client (branches, history, detail) built for Windows developers who backport commit sets several times a week. The user chose the canon over invented directions, and the quality bar is GitHub Desktop and Fork. That means the system wins on craft, not novelty: honest hairlines, a disciplined 30px control height, tabular monospace columns that line up, and a single blue that means "selected" or "the next thing to do".
+Cherrypick Masive is the category standard on purpose: a two-tab git client (History with list and detail, Cherry-pick with the commits to apply) built for Windows developers who backport commit sets several times a week. The user chose the canon over invented directions, and the quality bar is GitHub Desktop and Fork. That means the system wins on craft, not novelty: honest hairlines, a disciplined 30px control height, tabular monospace columns that line up, and a single blue that means "selected" or "the next thing to do".
 
-The history list is the work surface. Everything else serves reading it: the sidebar picks the branch, the filter bar narrows it, the right pane explains the focused commit and is replaced by the session panel while a cherry-pick runs. Density is high (13px body, 34px rows) and long-session legibility comes from neutral ground, low-chroma panes and strong ink rather than from whitespace.
+The history list is the work surface. Everything else serves reading it: the searchable branch picker above the filters picks the branch, the filter bar narrows it, the right pane explains the focused commit. Selected commits are loaded into the Cherry-pick tab, which holds the table of commits to apply, the target and new branch, the progress bar and the conflict banner; its tab turns red when a run needs the user. Density is high (13px body, 34px rows) and long-session legibility comes from neutral ground, low-chroma panes and strong ink rather than from whitespace.
 
 State is the one place colour is allowed to speak, and it never speaks alone. The build refuses dashboard cards, metric tiles and decoration; a light and a dark scheme carry the same roles through the same custom properties.
 
@@ -190,12 +190,12 @@ State is the one place colour is allowed to speak, and it never speaks alone. Th
 A GitHub-lineage neutral palette: cool greys, near-black ink, one saturated blue, and four state hues that each appear only as a soft tint plus a strong text colour.
 
 ### Primary
-- **Selection Blue** (`selection-blue`): the primary button ("Cherry-pick N commits…"), checked checkboxes, the focus ring, the current branch in the sidebar, ticket badges and the "Applying" status. Hover deepens to **Selection Blue Strong**. Dark scheme value is #4493f8 with ink-dark text on it.
+- **Selection Blue** (`selection-blue`): the primary buttons ("Load N into Cherry-pick", "Start cherry-pick"), checked checkboxes, the focus ring, the selected tab underline, the current branch in the picker, the progress bar, ticket badges and the "Applying" status. Hover deepens to **Selection Blue Strong**. Dark scheme value is #4493f8 with ink-dark text on it.
 - **Selection Blue Soft** (`selection-blue-soft`): the fill of selected history rows, the current session item, the current branch and ticket badges.
 
 ### Neutral
 - **Ground** (`ground`): the window behind panes; visible on the start screen.
-- **Pane** (`pane`): toolbar, sidebar, filter bar, list and detail backgrounds.
+- **Pane** (`pane`): toolbar, tab bar, filter bar, list, detail and Cherry-pick tab backgrounds.
 - **Pane Sunken** (`pane-sunken`): sticky list header, row hover, session action panel, `kbd` keys.
 - **Hairline** (`hairline`): every pane border, control stroke and dialog edge. **Hairline Soft** (`hairline-soft`) separates rows inside lists.
 - **Ink** (`ink`) and **Ink Muted** (`ink-muted`): primary text, and author/date/meta/label text. Muted ink still clears WCAG AA on pane and sunken surfaces.
@@ -223,7 +223,7 @@ A GitHub-lineage neutral palette: cool greys, near-black ink, one saturated blue
 - **Headline** (600, 22px): start screen title only.
 - **Title** (600, 16px, 1.35): commit subject in the detail pane, session heading ("Cherry-pick into …"), dialog titles. 15px is used for empty-state headings, 14px bold for the repo name in the toolbar.
 - **Body** (400, 13px, 1.45): the base size for rows, buttons, inputs, menus and toasts.
-- **Label** (600, 12px): list column headers, sidebar section headings, status chips. Sentence case; no uppercase, no tracking.
+- **Label** (600, 12px): list and table column headers, status chips. Sentence case; no uppercase, no tracking.
 - **Meta** (400, 12px): field labels (500), commit meta, hints, notices, session progress, file list.
 - **Badge** (11px, 18px line): ticket, merge and "in target" badges; `kbd` keys in mono.
 - **Mono** (400, 12px, 1.5, tabular figures): hashes, dates, +/- counts, file paths, the target branch route, conflicted file lists and the diff.
@@ -281,11 +281,11 @@ The signature of the session. 22px pill, 12px 600 text, 13px icon, soft tint fil
 ### History list
 A keyboard listbox (arrows, j/k, Home/End, PageUp/PageDown, Space/x to toggle, Ctrl+A, Escape). Rows are 34px, separated by soft hairlines; hover is pane-sunken, selected is blue-soft, keyboard-active gets the 2px inset ring. Merge commits stay visible but cannot be ticked.
 
-### Navigation (branch sidebar)
-Pane background with a right hairline; 12px/600 muted section headings; branch items are full-width 6px-radius buttons, neutral-soft on hover, blue-soft fill with blue 600 text when current.
+### Navigation (tabs and branch picker)
+Tabs sit in a pane band under the toolbar: 36px tall, muted text, the selected tab in ink 600 with a 2px blue underline. The Cherry-pick tab carries a neutral count badge (commits waiting, or done/total while a session runs) and switches to red text, underline and badge while a conflict or error waits on the user. Alt+1 and Alt+2 switch tabs. The branch picker is a 30px field-style button that opens a floating menu with a search input and the branches (remote first, main/develop/release first, closest names first), keyboard-driven with arrows, Enter and Escape.
 
-### Detail and session panes
-Header block (16px padding, title + 12px meta) over a scrolling body. Detail shows changed files (mono path, green/red counts) over the diff (mono 12px/1.5, add/del line tints, hunk headers in blue). The session pane shows the route in mono, a polite live progress line, the item list, and a sunken action panel at the bottom (Continue / Skip / Abort / Open in editor).
+### Detail pane and Cherry-pick tab
+Header block (16px padding, title + 12px meta) over a scrolling body. Detail shows changed files (mono path, green/red counts) over the diff (mono 12px/1.5, add/del line tints, hunk headers in blue). Before a run, the Cherry-pick tab shows the target picker, the editable branch name and Start, a bar with the count, Add by hash and Clear, and a table (#, hash, subject, author, date, status, remove) ordered oldest first; commits already in the target get the green "in target" badge. During a run the header shows the route in mono and an 8px progress bar (blue, red while stopped) with the per-status counts; the action panel sits above the table and becomes a red-soft banner on a conflict, listing each file with a resolved/unresolved icon, a live "Resolved" line and Continue / Skip / Abort / Resolve in VS Code. The current row gets a 3px inset accent (red during a conflict); only later pending rows show a remove button.
 
 ### Notices, dialogs, menu, toast
 Notices are full-width bands with a hairline below: amber-soft for warnings, red-soft for errors, icon tinted with the state colour, text in ink. Dialogs are native `<dialog>`, 640px max, 12px radius, Float shadow, 45% dark backdrop, footer actions right-aligned. The toast is inverted (ink fill, pane text), bottom-centre, and eases in over 180ms (`cubic-bezier(0.16, 1, 0.3, 1)`); it and the spinner stop under `prefers-reduced-motion`.

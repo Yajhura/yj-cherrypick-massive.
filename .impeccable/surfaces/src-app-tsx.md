@@ -17,7 +17,7 @@ OWN-WORLD: Neutral light panes (#f6f7f9 ground, white panes, #d0d7de hairlines),
 
 STORY: Open a repo, land on the branch history, filter by ticket/author/date or "missing from <target>", tick commits, press Cherry-pick, confirm target and branch name, watch each commit resolve; on conflict open VS Code, then Continue/Skip/Abort; finish with a pushed branch. Export whatever the list shows.
 
-FIRST VIEWPORT: Top toolbar: repo picker, current branch, Fetch, primary "Cherry-pick N commits…", Export. Left sidebar 240px: local and remote branches. Center: filter bar over the commit table (checkbox, subject with ticket and badges, author, hash, date). Right 420px: focused commit detail (files with +/- and diff), replaced by the session panel while a cherry-pick runs.
+FIRST VIEWPORT: Top toolbar: repo, Open, Fetch, Export, changes-panel toggle, settings. Tab bar: History and Cherry-pick (count or progress badge, red while a run needs the user). History: searchable branch picker and primary "Load N into Cherry-pick" above the filter bar, the commit table (checkbox with Shift+click ranges, subject with ticket and badges, author, hash, date) and, on the right, the focused commit detail (files with +/- and diff). Cherry-pick: target picker, branch name and Start over the table of commits to apply; during a run, a progress bar, the conflict banner with live resolution state, and the table with per-commit status.
 
 FORM: Category standard (canon), chosen by the user over the roll; quality bar GitHub Desktop and Fork. seed:a8f16d78efd24772
 

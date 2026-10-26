@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Cherry, Download, FileSpreadsheet, FileText, FolderOpen, PanelRightClose, PanelRightOpen, RefreshCw, Settings, Table } from "lucide-react";
+import { ChevronDown, Download, FileSpreadsheet, FileText, FolderOpen, PanelRightClose, PanelRightOpen, RefreshCw, Settings, Table } from "lucide-react";
 import { ExportFormat } from "../api";
 import { Key, useI18n } from "../i18n";
 
@@ -7,16 +7,13 @@ interface Props {
   repoRoot: string;
   branch: string | null;
   fetching: boolean;
-  selectedCount: number;
-  sessionActive: boolean;
   visibleCount: number;
-  cherryPickDisabledReason: string | null;
   onOpenRepo: () => void;
   onFetch: () => void;
-  onCherryPick: () => void;
   onExport: (format: ExportFormat) => void;
   onSettings: () => void;
-  showChanges: boolean;
+  /** null hides the toggle (the Cherry-pick tab has no changes panel). */
+  showChanges: boolean | null;
   onToggleChanges: () => void;
 }
 
@@ -32,14 +29,7 @@ function repoName(root: string) {
 
 export function Toolbar(props: Props) {
   const { t } = useI18n();
-  const { repoRoot, branch, fetching, selectedCount, sessionActive, visibleCount, cherryPickDisabledReason } = props;
-  const cherryPickLabel = sessionActive
-    ? t("toolbar.sessionInProgress")
-    : selectedCount === 1
-      ? t("toolbar.cherryPick1")
-      : selectedCount > 1
-        ? t("toolbar.cherryPickN", { count: selectedCount })
-        : t("toolbar.cherryPick");
+  const { repoRoot, branch, fetching, visibleCount } = props;
   const changesLabel = props.showChanges ? t("toolbar.hideChanges") : t("toolbar.showChanges");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -95,21 +85,7 @@ export function Toolbar(props: Props) {
           </div>
         )}
       </div>
-      <button
-        className="btn primary"
-        onClick={props.onCherryPick}
-        disabled={cherryPickDisabledReason !== null}
-        title={cherryPickDisabledReason ?? t("toolbar.cherryPickTitle")}
-        aria-describedby={cherryPickDisabledReason ? "cherry-pick-reason" : undefined}
-      >
-        <Cherry size={16} />
-        {cherryPickLabel}
-      </button>
-      {cherryPickDisabledReason && (
-        <span id="cherry-pick-reason" className="sr-only">
-          {cherryPickDisabledReason}
-        </span>
-      )}
+      {props.showChanges !== null && (
       <button
         className="btn ghost icon-btn"
         onClick={props.onToggleChanges}
@@ -119,6 +95,7 @@ export function Toolbar(props: Props) {
       >
         {props.showChanges ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
       </button>
+      )}
       <button className="btn ghost icon-btn" onClick={props.onSettings} aria-label={t("toolbar.settings")} title={t("toolbar.settings")}>
         <Settings size={16} />
       </button>

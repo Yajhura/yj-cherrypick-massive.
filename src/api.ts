@@ -75,6 +75,9 @@ export type PickStatus = "pending" | "applied" | "empty" | "skipped";
 export interface PickItem {
   hash: string;
   subject: string;
+  /** Empty in sessions saved before these fields existed. */
+  author: string;
+  date: string;
   status: PickStatus;
   newHash: string | null;
 }
@@ -95,6 +98,17 @@ export interface Session {
   current: number;
   state: SessionState;
   warnings: string[];
+}
+
+export interface Lookup {
+  commits: Commit[];
+  unknown: string[];
+  merges: string[];
+}
+
+export interface ConflictStatus {
+  resolved: boolean;
+  unresolved: string[];
 }
 
 export type ExportFormat = "csv" | "markdown" | "xlsx";
@@ -121,7 +135,13 @@ export const api = {
   commitDiff: (repo: string, hash: string) => invoke<CommitDiff>("commit_diff", { repo, hash }),
   renderBranchName: (template: string, target: string, tickets: string[]) =>
     invoke<string>("render_branch_name", { template, target, tickets }),
+  lookupCommits: (repo: string, text: string, ticketPattern: string) =>
+    invoke<Lookup>("lookup_commits", { repo, text, ticketPattern }),
+  commitsInTarget: (repo: string, hashes: string[], target: string) =>
+    invoke<string[]>("commits_in_target", { repo, hashes, target }),
   currentSession: () => invoke<Session | null>("current_session"),
+  removePendingCommits: (hashes: string[]) => invoke<Session>("remove_pending_commits", { hashes }),
+  conflictStatus: () => invoke<ConflictStatus>("conflict_status"),
   startCherryPick: (request: { repo: string; target: string; branch: string; hashes: string[] }) =>
     invoke<Session>("start_cherry_pick", { request }),
   continueCherryPick: () => invoke<Session>("continue_cherry_pick"),
@@ -129,7 +149,7 @@ export const api = {
   retryPush: () => invoke<Session>("retry_push"),
   abortCherryPick: () => invoke<Session>("abort_cherry_pick"),
   dismissSession: () => invoke<void>("dismiss_session"),
-  openInEditor: (path: string) => invoke<void>("open_in_editor", { path }),
+  openInEditor: (path: string, files: string[] = []) => invoke<void>("open_in_editor", { path, files }),
   exportCommits: (commits: Commit[], format: ExportFormat, path: string) =>
     invoke<void>("export_commits", { commits, format, path }),
 };

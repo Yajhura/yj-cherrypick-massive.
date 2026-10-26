@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ask, open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { CircleCheck, TriangleAlert } from "lucide-react";
+import { Cherry, CircleCheck, History, OctagonAlert, TriangleAlert } from "lucide-react";
 import { api, Author, Branch, Commit, errorMessage, ExportFormat, isSessionFinished, OpenedRepo, Session, Settings } from "./api";
+import { addToBasket, Basket, emptyBasket, loadIntoBasket, progressOf, rangeBetween } from "./basket";
 import { emptyFilters, Filters, useCommitDetail, useCommits } from "./hooks";
 import { Toolbar } from "./components/Toolbar";
-import { Sidebar } from "./components/Sidebar";
 import { FilterBar } from "./components/FilterBar";
 import { CommitList, isSelectable } from "./components/CommitList";
 import { CommitDetail } from "./components/CommitDetail";
 import { Display, displayOf, SessionPanel } from "./components/SessionPanel";
-import { CherryPickDialog } from "./components/CherryPickDialog";
+import { CherryPickSetup } from "./components/CherryPickSetup";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { StartScreen } from "./components/StartScreen";
+import { notifyInBackground } from "./notify";
 import { I18nProvider, useI18n } from "./i18n";
+
+type Tab = "history" | "cherry-pick";
+
+/** How often the saved session is read while the engine applies commits. */
+const PROGRESS_POLL_MS = 600;
 
 const defaultSettings: Settings = {
   recentRepos: [],
@@ -71,17 +77,19 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
   const [reloadKey, setReloadKey] = useState(0);
   const [selected, setSelected] = useState<Map<string, Commit>>(new Map());
   const [activeIndex, setActiveIndex] = useState(0);
+  const [tab, setTab] = useState<Tab>("history");
+  const [basket, setBasket] = useState<Basket>(emptyBasket);
+  const [startError, setStartError] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [sessionLoadError, setSessionLoadError] = useState<string | null>(null);
   const [sessionBusy, setSessionBusy] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
-  const [rightPane, setRightPane] = useState<"detail" | "session">("detail");
   const [showChanges, setShowChangesState] = useState(() => readPref("showChanges") !== "false");
   const setShowChanges = (value: boolean) => {
     setShowChangesState(value);
     writePref("showChanges", String(value));
   };
-  const [dialog, setDialog] = useState<"cherry-pick" | "settings" | null>(null);
+  const [dialog, setDialog] = useState<"settings" | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -105,6 +113,7 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
       setFilters(emptyFilters);
       setSelected(new Map());
       setActiveIndex(0);
+      setBasket(emptyBasket);
       setSettings(await api.getSettings());
     } catch (e) {
       setOpenError(fail(e));
@@ -122,7 +131,7 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
       .then((s) => {
         if (s && !isSessionFinished(s)) {
           setSession(s);
-          setRightPane("session");
+          setTab("cherry-pick");
           openRepo(s.repo);
         }
       })
@@ -159,7 +168,6 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     setSource(name);
     setSelected(new Map());
     setActiveIndex(0);
-    setRightPane(session ? rightPane : "detail");
   };
 
   const toggle = (c: Commit) =>
@@ -167,6 +175,13 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
       const next = new Map(prev);
       if (next.has(c.hash)) next.delete(c.hash);
       else next.set(c.hash, c);
+      return next;
+    });
+
+  const selectRange = (from: number, to: number) =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      for (const c of rangeBetween(visible, from, to)) next.set(c.hash, c);
       return next;
     });
 
@@ -180,21 +195,57 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     return map;
   }, [session, sessionActive, sessionBusy]);
 
-  // When a pick stops, bring the commit that needs attention into view in the history.
-  const stoppedHash = session && (session.state.kind === "conflict" || session.state.kind === "failed") ? session.items[session.current]?.hash : undefined;
+  // While the engine applies commits, follow its saved progress.
   useEffect(() => {
-    if (!stoppedHash) return;
-    // A stopped session needs the user: never leave its panel hidden.
-    setShowChangesState(true);
-    setRightPane("session");
-    const index = visible.findIndex((c) => c.hash === stoppedHash);
-    if (index >= 0) setActiveIndex(index);
-  }, [stoppedHash, visible]);
-  const cherryPickDisabledReason = sessionActive
-    ? t("reason.sessionActive")
-    : selected.size === 0
-      ? t("reason.noSelection")
-      : null;
+    if (!sessionBusy) return;
+    const id = window.setInterval(() => {
+      api
+        .currentSession()
+        .then((s) => s && setSession(s))
+        .catch(() => undefined);
+    }, PROGRESS_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [sessionBusy]);
+
+  // A stop or the end of the run needs the user: tell them, also when the app is behind.
+  const stopped = session?.state.kind === "conflict" || session?.state.kind === "failed";
+  const stopKey = session && stopped ? `${session.branch}:${session.current}` : undefined;
+  useEffect(() => {
+    if (!stopKey || !session) return;
+    const hash = session.items[session.current]?.hash.slice(0, 8) ?? "";
+    const title = session.state.kind === "conflict" ? t("notify.conflictTitle") : t("notify.failedTitle");
+    const files = session.state.kind === "conflict" ? session.state.files.length : 0;
+    notifyInBackground(title, t("notify.stopBody", { hash, count: files }));
+    if (tab !== "cherry-pick") notify(`${title}: ${hash}`, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopKey]);
+  const doneKey = session?.state.kind === "completed" ? session.branch : undefined;
+  useEffect(() => {
+    if (doneKey) notifyInBackground(t("notify.doneTitle"), doneKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doneKey]);
+
+  const loadIntoCherryPick = async () => {
+    if (!source || selected.size === 0) return;
+    const result = loadIntoBasket(basket, source, [...selected.values()]);
+    let next: Basket;
+    if (result.kind === "confirm") {
+      const confirmed = await ask(t("basket.replaceBody", { current: result.current ?? "", source }), {
+        title: t("basket.replaceTitle"),
+        kind: "warning",
+        okLabel: t("basket.replace"),
+        cancelLabel: t("common.cancel"),
+      });
+      if (!confirmed) return;
+      next = result.replacement;
+    } else {
+      next = result.basket;
+    }
+    setBasket(next);
+    setSelected(new Map());
+    setStartError(null);
+    setTab("cherry-pick");
+  };
 
   const fetchNow = async () => {
     if (!repo || fetching) return;
@@ -235,16 +286,22 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
   const startCherryPick = async (target: string, branch: string) => {
     if (!repo) return;
     setSessionBusy(true);
-    setDialogError(null);
+    setStartError(null);
+    setSessionError(null);
     try {
-      const s = await api.startCherryPick({ repo: repo.root, target, branch, hashes: [...selected.keys()] });
+      const s = await api.startCherryPick({ repo: repo.root, target, branch, hashes: basket.commits.map((c) => c.hash) });
       setSession(s);
-      setSelected(new Map());
-      setRightPane("session");
-      setShowChanges(true);
-      setDialog(null);
+      setBasket(emptyBasket);
     } catch (e) {
-      setDialogError(fail(e));
+      // A failure before the first pick leaves no session; a later one is shown with it.
+      const saved = await api.currentSession().catch(() => null);
+      if (saved && !isSessionFinished(saved)) {
+        setSession(saved);
+        setBasket(emptyBasket);
+        setSessionError(fail(e));
+      } else {
+        setStartError(fail(e));
+      }
     } finally {
       setSessionBusy(false);
     }
@@ -275,7 +332,6 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     try {
       const s = await api.abortCherryPick();
       setSession(null);
-      setRightPane("detail");
       notify(s.warnings.length ? t("app.abortedWarnings", { warnings: s.warnings.map(te).join("; ") }) : t("app.aborted"));
     } catch (e) {
       setSessionError(fail(e));
@@ -289,7 +345,7 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
       await api.dismissSession();
       setSession(null);
       setSessionLoadError(null);
-      setRightPane("detail");
+      setSessionError(null);
       setReloadKey((k) => k + 1);
     } catch (e) {
       setSessionError(fail(e));
@@ -312,22 +368,27 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement;
       if (dialog) return;
-      if (e.key === "/" && !typing) {
+      if (e.key === "/" && !typing && tab === "history") {
         e.preventDefault();
         searchRef.current?.focus();
       } else if (e.key === "F5") {
         e.preventDefault();
         fetchNow();
-      } else if (e.key === "d" && e.ctrlKey) {
+      } else if (e.key === "d" && e.ctrlKey && tab === "history") {
         e.preventDefault();
         setShowChanges(!showChanges);
       } else if (e.key === "o" && e.ctrlKey) {
         e.preventDefault();
         browse();
-      } else if (e.key === "Enter" && e.ctrlKey && cherryPickDisabledReason === null) {
+      } else if (e.key === "Enter" && e.ctrlKey && tab === "history" && selected.size > 0) {
         e.preventDefault();
-        setDialogError(null);
-        setDialog("cherry-pick");
+        loadIntoCherryPick();
+      } else if (e.key === "1" && e.altKey) {
+        e.preventDefault();
+        setTab("history");
+      } else if (e.key === "2" && e.altKey) {
+        e.preventDefault();
+        setTab("cherry-pick");
       } else if (e.key === "Escape" && typing && e.target === searchRef.current) {
         listRef.current?.focus();
       }
@@ -360,7 +421,9 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     );
   }
 
-  const selectedCommits = [...selected.values()];
+  // The Cherry-pick tab badge: progress while a session lives, else the commits waiting.
+  const progress = session && sessionActive ? progressOf(session) : null;
+  const tabBadge = progress ? `${progress.done}/${progress.total}` : basket.commits.length > 0 ? String(basket.commits.length) : null;
 
   return (
     <div className="app">
@@ -368,26 +431,37 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
         repoRoot={repo.root}
         branch={source}
         fetching={fetching}
-        selectedCount={selected.size}
-        sessionActive={sessionActive}
-        visibleCount={visible.length}
-        cherryPickDisabledReason={cherryPickDisabledReason}
+        visibleCount={tab === "history" ? visible.length : 0}
         onOpenRepo={browse}
         onFetch={fetchNow}
-        onCherryPick={() => {
-          setDialogError(null);
-          setDialog("cherry-pick");
-        }}
         onExport={exportVisible}
-        showChanges={showChanges}
+        showChanges={tab === "history" ? showChanges : null}
         onToggleChanges={() => setShowChanges(!showChanges)}
         onSettings={() => {
           setDialogError(null);
           setDialog("settings");
         }}
       />
-      <div className={`workspace${showChanges ? "" : " no-detail"}`}>
-        <Sidebar branches={repo.branches} current={source} onSelect={selectBranch} />
+      <div className="tabs" role="tablist" aria-label={t("tabs.label")}>
+        <button role="tab" id="tab-history" aria-controls="panel-history" aria-selected={tab === "history"} className="tab" onClick={() => setTab("history")} title="Alt+1">
+          <History size={15} aria-hidden="true" /> {t("tabs.history")}
+        </button>
+        <button
+          role="tab"
+          id="tab-cherry-pick"
+          aria-controls="panel-cherry-pick"
+          aria-selected={tab === "cherry-pick"}
+          className={`tab${stopped ? " alert" : ""}`}
+          onClick={() => setTab("cherry-pick")}
+          title="Alt+2"
+        >
+          {stopped ? <OctagonAlert size={15} aria-hidden="true" /> : <Cherry size={15} aria-hidden="true" />} {t("tabs.cherryPick")}
+          {tabBadge && <span className="tab-badge mono">{tabBadge}</span>}
+          {stopped && <span className="sr-only">{t("tabs.needsYou")}</span>}
+        </button>
+      </div>
+
+      <div id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden={tab !== "history"} className={`workspace${showChanges ? "" : " no-detail"}`}>
         <main className="center">
           <FilterBar
             ref={searchRef}
@@ -398,6 +472,8 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
             shown={visible.length}
             selected={selected.size}
             loading={loading}
+            onSource={selectBranch}
+            onLoad={loadIntoCherryPick}
             onChange={(patch) => {
               setFilters((f) => ({ ...f, ...patch, hideApplied: (patch.target ?? f.target) ? (patch.hideApplied ?? f.hideApplied) : false }));
               setActiveIndex(0);
@@ -441,52 +517,53 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
               activeIndex={safeIndex}
               onActivate={setActiveIndex}
               onToggle={toggle}
+              onSelectRange={selectRange}
               onSelectAll={selectAll}
               onClearSelection={() => setSelected(new Map())}
             />
           )}
         </main>
         <aside className="detail" aria-label={t("detail.label")} hidden={!showChanges}>
-          {session && (
-            <div className="filters" role="tablist" aria-label={t("app.rightPane")} style={{ display: "flex", gap: 4, padding: "6px 12px" }}>
-              <button role="tab" aria-selected={rightPane === "session"} className={`btn ${rightPane === "session" ? "" : "ghost"}`} onClick={() => setRightPane("session")}>
-                {t("app.tabSession")}
-              </button>
-              <button role="tab" aria-selected={rightPane === "detail"} className={`btn ${rightPane === "detail" ? "" : "ghost"}`} onClick={() => setRightPane("detail")}>
-                {t("app.tabDetail")}
-              </button>
-            </div>
-          )}
-          {session && rightPane === "session" ? (
-            <SessionPanel
-              session={session}
-              busy={sessionBusy}
-              error={sessionError}
-              onOpenEditor={() => api.openInEditor(session.worktree).catch((e) => setSessionError(fail(e)))}
-              onContinue={() => runSession(api.continueCherryPick)}
-              onSkip={() => runSession(api.skipCommit)}
-              onRetryPush={() => runSession(api.retryPush)}
-              onAbort={abort}
-              onDismiss={dismiss}
-              onCopy={(text) => navigator.clipboard.writeText(text).then(() => notify(t("app.copied")))}
-            />
-          ) : (
-            <CommitDetail commit={active} stat={detail?.stat ?? null} diff={detail?.diff ?? null} loading={detailLoading} error={detailError} />
-          )}
+          <CommitDetail commit={active} stat={detail?.stat ?? null} diff={detail?.diff ?? null} loading={detailLoading} error={detailError} />
         </aside>
       </div>
-      <CherryPickDialog
-        open={dialog === "cherry-pick"}
-        commits={selectedCommits}
-        branches={repo.branches}
-        source={source ?? ""}
-        defaultTarget={filters.target}
-        template={settings.branchTemplate}
-        busy={sessionBusy}
-        error={dialogError}
-        onCancel={() => setDialog(null)}
-        onStart={startCherryPick}
-      />
+
+      <div id="panel-cherry-pick" role="tabpanel" aria-labelledby="tab-cherry-pick" hidden={tab !== "cherry-pick"} className="cp-panel">
+        {session ? (
+          <SessionPanel
+            session={session}
+            busy={sessionBusy}
+            error={sessionError}
+            editorCommand={settings.editorCommand}
+            onOpenEditor={(files) => api.openInEditor(session.worktree, files).catch((e) => setSessionError(fail(e)))}
+            onContinue={() => runSession(api.continueCherryPick)}
+            onSkip={() => runSession(api.skipCommit)}
+            onRetryPush={() => runSession(api.retryPush)}
+            onRemove={(hash) => runSession(() => api.removePendingCommits([hash]))}
+            onAbort={abort}
+            onDismiss={dismiss}
+            onCopy={(text) => navigator.clipboard.writeText(text).then(() => notify(t("app.copied")))}
+          />
+        ) : (
+          <CherryPickSetup
+            repoRoot={repo.root}
+            branches={repo.branches}
+            basket={basket}
+            defaultTarget={filters.target}
+            template={settings.branchTemplate}
+            ticketPattern={settings.ticketPattern}
+            busy={sessionBusy}
+            error={startError}
+            onAdd={(commits) => {
+              const { basket: next, repeated } = addToBasket(basket, commits);
+              setBasket(next);
+              return repeated;
+            }}
+            onRemove={(hashes) => setBasket((b) => ({ ...b, commits: b.commits.filter((c) => !hashes.includes(c.hash)) }))}
+            onStart={startCherryPick}
+          />
+        )}
+      </div>
       <SettingsDialog open={dialog === "settings"} settings={settings} error={dialogError} onCancel={() => setDialog(null)} onSave={saveSettings} />
       {toastEl}
     </div>

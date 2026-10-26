@@ -19,8 +19,8 @@ test("every placeholder used in English exists in Spanish", () => {
 });
 
 test("translate interpolates parameters", () => {
-  assert.equal(translate("es", "toolbar.cherryPickN", { count: 3 }), "Cherry-pick de 3 commits…");
-  assert.equal(translate("en", "toolbar.cherryPickN", { count: 3 }), "Cherry-pick 3 commits…");
+  assert.equal(translate("es", "filters.loadN", { count: 3 }), "Cargar 3 en Cherry-pick");
+  assert.equal(translate("en", "filters.loadN", { count: 3 }), "Load 3 into Cherry-pick");
 });
 
 test("auto follows the OS language and falls back to English", () => {
