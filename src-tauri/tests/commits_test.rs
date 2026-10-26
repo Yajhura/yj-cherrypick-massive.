@@ -151,3 +151,24 @@ fn resolves_root_and_lists_local_and_remote_branches() {
     assert!(names.contains(&("origin/main", true)));
     assert!(names.iter().all(|(n, _)| !n.ends_with("HEAD") && *n != "origin"));
 }
+
+#[test]
+fn lists_main_develop_and_releases_first() {
+    let f = Fixture::new();
+    for b in ["zeta", "alpha", "release/2.3", "develop", "feature/cem-1", "release/2.10", "hotfix/x"] {
+        f.git(&["branch", b]);
+        f.git(&["push", "-q", "origin", b]);
+    }
+    f.git(&["fetch", "-q", "origin"]);
+
+    let branches = list_branches(&Git::new(&f.repo)).unwrap();
+    let local: Vec<&str> = branches.iter().filter(|b| !b.is_remote).map(|b| b.name.as_str()).collect();
+    let remote: Vec<&str> = branches.iter().filter(|b| b.is_remote).map(|b| b.name.as_str()).collect();
+
+    // Releases newest first by version, the rest alphabetical.
+    assert_eq!(local, ["main", "develop", "release/2.10", "release/2.3", "alpha", "feature/cem-1", "hotfix/x", "zeta"]);
+    assert_eq!(
+        remote,
+        ["origin/main", "origin/develop", "origin/release/2.10", "origin/release/2.3", "origin/alpha", "origin/feature/cem-1", "origin/hotfix/x", "origin/zeta"]
+    );
+}

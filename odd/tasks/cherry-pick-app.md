@@ -18,6 +18,11 @@ Branch: `feat/cherry-pick-app` · Delivery: ask-on-risk · Test runner: `cargo t
 - S11 History view: hash, author, date, message; changed files (`--stat`); full diff of the selected commit. Reuses the selection filters.
 - S12 Export what is filtered on screen to Excel (.xlsx), CSV, Markdown.
 - S13 Distribution: installer + auto-update via GitHub Releases. (Needs repo URL + signing key from user — deferred.)
+- S14 Branch order: "Deseo que en la lista de ramas se vea las ramas mas importantes al principio es decir main develop release". main/master, then develop, then release/*, then the rest alphabetically, in both Remote and Local groups.
+- S15 Branch search ranking: "mejorar la búsqueda de rama por ejemplo si busco cem. me sale primero cem-412312, cem-fx-4331 y al ultimo cem. la cual quiero que el principal que seria se muestre primero". Exact name (or exact last segment) first, then prefix, then contains; shorter names first within a rank.
+- S16 "poder ocultar y mostrar con un boton el visualizador de cambios". Toggle persists; the pane reappears when a session starts or stops on a conflict (assumption, disclosed).
+- S17 "Que el programa este traducido también al español". English and Spanish; Settings language Auto/English/Español, Auto follows the OS. App messages translated; git's own output shown as git prints it (assumption, disclosed).
+- S18 "Que el filtro de autor sea una lista multiseleccionable y listo los autores econtrados en el repo". Author filter is a multi-select of the authors found in the selected branch (name, email, commit count).
 
 ## Tasks
 
@@ -27,6 +32,10 @@ Branch: `feat/cherry-pick-app` · Delivery: ask-on-risk · Test runner: `cargo t
 - [x] T4 S12 — export CSV/MD/XLSX · route: inline · cb852a9
 - [x] T5 S2,S3,S7,S9-S12 — React UI (repo picker, filters, commit table, run panel, history, export) · route: inline · 2847ae2..9362375 · finish review ship, DESIGN.md written, real-app E2E passed, native review approved
 - [ ] T6 S13 — updater/installer config · route: inline · blocked on user input (GitHub repo, signing key)
+- [ ] T7 S14,S15 — branch ordering (Rust list_branches) + search ranking (TS) · route: inline
+- [ ] T8 S16 — toggle for the changes pane · route: inline
+- [ ] T9 S18 — list_authors command + authors multi-select filter · route: inline
+- [ ] T10 S17 — i18n en/es + language setting · route: inline
 
 ## Log
 
@@ -43,3 +52,10 @@ Branch: `feat/cherry-pick-app` · Delivery: ask-on-risk · Test runner: `cargo t
 - L11 Real-app E2E over WebView2 DevTools (no mocks, real git): open repo → select PAY-1..3 → dialog names cherry-pick/release/1.0/<date> → conflict on a.txt → Continue refused with markers → resolve → applied. Found bug: push from the worktree broke relative remote URLs → fixed by pushing from the main repo (fd64e06, RED→GREEN test). Persisted session reopened as "Push failed" → Retry push → remote has 3 commits in order, resolved content, -x trailer. One unexplained app exit on the very first run (exit 0) did not reproduce, including with a forced push failure.
 - L12 Native review 5e11890..9362375 (risk, reliability, readability) approved and acknowledged. Non-blocking advisories for later: R2-failed-shown-as-conflict (SessionPanel.tsx:31), R3-branch-name-churn and R3-preview-order (CherryPickDialog.tsx:29), R3-stale-detail and R3-stale-list (hooks.ts), R3-ui-untested, plus 5 suggestions.
 - Next: T6 (needs GitHub repo URL + updater signing key); optional follow-ups above; engine advisories A4/A5.
+- L13 (2026-10-25) User corrections, verbatim:
+  "Correciones
+  1.Deseo que en la lista de ramas se vea las ramas mas importantes al principio es decir main develop release
+  2.mejorar la búsqueda de rama por ejemplo si busco cem. me sale primero cem-412312, cem-fx-4331 y al ultimo cem. la cual quiero que el principal que seria se muestre primero
+  3.poder ocultar y mostrar con un boton el visualizador de cambios
+  4.Que el programa este traducido también al español
+  5.Que el filtro de autor sea una lista multiseleccionable y listo los autores econtrados en el repo"

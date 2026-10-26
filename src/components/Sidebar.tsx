@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Cloud, GitBranch } from "lucide-react";
 import { Branch } from "../api";
+import { searchBranches } from "../branchSearch";
 
 interface Props {
   branches: Branch[];
@@ -11,8 +12,7 @@ interface Props {
 export function Sidebar({ branches, current, onSelect }: Props) {
   const [query, setQuery] = useState("");
   const { local, remote } = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const match = branches.filter((b) => !q || b.name.toLowerCase().includes(q));
+    const match = searchBranches(branches, query);
     return { local: match.filter((b) => !b.isRemote), remote: match.filter((b) => b.isRemote) };
   }, [branches, query]);
 
