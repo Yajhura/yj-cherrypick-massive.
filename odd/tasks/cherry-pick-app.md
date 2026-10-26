@@ -32,10 +32,10 @@ Branch: `feat/cherry-pick-app` · Delivery: ask-on-risk · Test runner: `cargo t
 - [x] T4 S12 — export CSV/MD/XLSX · route: inline · cb852a9
 - [x] T5 S2,S3,S7,S9-S12 — React UI (repo picker, filters, commit table, run panel, history, export) · route: inline · 2847ae2..9362375 · finish review ship, DESIGN.md written, real-app E2E passed, native review approved
 - [ ] T6 S13 — updater/installer config · route: inline · blocked on user input (GitHub repo, signing key)
-- [ ] T7 S14,S15 — branch ordering (Rust list_branches) + search ranking (TS) · route: inline
-- [ ] T8 S16 — toggle for the changes pane · route: inline
-- [ ] T9 S18 — list_authors command + authors multi-select filter · route: inline
-- [ ] T10 S17 — i18n en/es + language setting · route: inline
+- [x] T7 S14,S15 — branch ordering (Rust list_branches) + search ranking (TS) · route: inline · e3dd8ce
+- [x] T8 S16 — toggle for the changes pane · route: inline · d878bae
+- [x] T9 S18 — list_authors command + authors multi-select filter · route: inline · 4810d27
+- [x] T10 S17 — i18n en/es + language setting · route: inline · 115b34b, 4c7ca28
 
 ## Log
 
@@ -59,3 +59,5 @@ Branch: `feat/cherry-pick-app` · Delivery: ask-on-risk · Test runner: `cargo t
   3.poder ocultar y mostrar con un boton el visualizador de cambios
   4.Que el programa este traducido también al español
   5.Que el filtro de autor sea una lista multiseleccionable y listo los autores econtrados en el repo"
+- L14 Corrections implemented with RED→GREEN tests: Rust list_branches ordering (main/master, develop, releases newest-version first, rest A-Z), list_authors + multi-author filter; TS tests via `npm test` (node --test, no new deps) for branch search ranking and i18n (key parity, placeholders, OS fallback, backend error translation). Also fixed review advisories R2-failed-shown-as-conflict (new "Error" status) and R3-preview-order (dialog sorts by author instant).
+- L15 Verified in the real app over WebView2 DevTools, Spanish UI: 11/11 checks PASS (Spanish start screen; remote and local order main→develop→release/2.0→release/1.0; search "cem" → cem, cem-412312, cem-fx-4331; author list with 3 repo authors and counts; 2-author filter; "2 autores" label; pane hide/show by button and Ctrl+D; preference kept after reload). Spanish label truncations fixed (4c7ca28).
