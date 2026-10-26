@@ -154,7 +154,7 @@ input[type="checkbox"]:disabled { border-color: var(--line); background-color: v
 
 .center { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-right: 1px solid var(--line); }
 .filters {
-  display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(148px, auto) minmax(148px, auto); gap: 8px;
+  display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.9fr) minmax(0, 1.4fr) minmax(148px, auto) minmax(148px, auto); gap: 8px;
   padding: 10px 12px; background: var(--pane); border-bottom: 1px solid var(--line);
 }
 .filters .row2 { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 12px; }
@@ -326,5 +326,6 @@ aside.detail[hidden] { display: none; }
 .picker-item .who { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
 .picker-item .who span, .picker-item .who small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picker-item .who small { font-size: 11px; }
-.picker-foot { display: flex; align-items: center; justify-content: space-between; font-size: 12px; border-top: 1px solid var(--line-soft); padding-top: 6px; }
+.picker-foot { white-space: nowrap; gap: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; border-top: 1px solid var(--line-soft); padding-top: 6px; }
 .menu.picker .empty { margin: 6px; font-size: 12px; color: var(--ink-muted); }
+.filters .target-select { width: auto; min-width: 220px; max-width: 340px; }

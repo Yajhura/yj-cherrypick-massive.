@@ -48,7 +48,7 @@ export const FilterBar = forwardRef<HTMLInputElement, Props>(function FilterBar(
       <div className="row2">
         <label className="check">
           {t("filters.missingFrom")}
-          <select className="input" value={filters.target} onChange={(e) => onChange({ target: e.target.value })} style={{ width: 220 }}>
+          <select className="input target-select" value={filters.target} onChange={(e) => onChange({ target: e.target.value })}>
             <option value="">{t("filters.anyBranch")}</option>
             {targets.map((b) => (
               <option key={b.name} value={b.name}>
