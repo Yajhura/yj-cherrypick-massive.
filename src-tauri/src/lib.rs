@@ -20,7 +20,7 @@ use commits::{Author, Commit, CommitList, CommitQuery, Lookup};
 use error::{AppError, AppResult};
 use export::ExportFormat;
 use git::Git;
-use history::{CommitDiff, FileStat};
+use history::{CommitDiff, FileChange, FileStat, FileVersions};
 use repo::Branch;
 use settings::{Settings, SettingsStore};
 
@@ -116,6 +116,32 @@ async fn commit_stat(repo: String, hash: String) -> AppResult<Vec<FileStat>> {
 #[tauri::command]
 async fn commit_diff(repo: String, hash: String) -> AppResult<CommitDiff> {
     blocking(move || history::commit_diff(&Git::new(&repo), &hash)).await
+}
+
+#[tauri::command]
+async fn commit_files(repo: String, hash: String) -> AppResult<Vec<FileChange>> {
+    blocking(move || history::commit_files(&Git::new(&repo), &hash)).await
+}
+
+#[tauri::command]
+async fn file_diff(
+    repo: String,
+    hash: String,
+    path: String,
+    old_path: Option<String>,
+    ignore_whitespace: bool,
+) -> AppResult<CommitDiff> {
+    blocking(move || history::file_diff(&Git::new(&repo), &hash, &path, old_path.as_deref(), ignore_whitespace)).await
+}
+
+#[tauri::command]
+async fn commit_patch(repo: String, hash: String, ignore_whitespace: bool) -> AppResult<CommitDiff> {
+    blocking(move || history::commit_patch(&Git::new(&repo), &hash, ignore_whitespace)).await
+}
+
+#[tauri::command]
+async fn file_versions(repo: String, hash: String, path: String, old_path: Option<String>) -> AppResult<FileVersions> {
+    blocking(move || history::file_versions(&Git::new(&repo), &hash, &path, old_path.as_deref())).await
 }
 
 #[tauri::command]
@@ -218,6 +244,10 @@ pub fn run() {
             list_authors,
             commit_stat,
             commit_diff,
+            commit_files,
+            file_diff,
+            commit_patch,
+            file_versions,
             render_branch_name,
             lookup_commits,
             commits_in_target,
