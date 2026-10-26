@@ -11,6 +11,42 @@
         ],
         "createdAt": "2026-10-26T02:30:40.028Z",
         "reason": "model: track-diagram panel in a decision sketch; labels are positioned diagram annotations, not padded text"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-10-26T03:31:59.099Z",
+        "reason": "model: spent decision-round sketch of an unchosen or reference direction, gitignored and never shipped"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/model-pick.html"
+        ],
+        "createdAt": "2026-10-26T03:31:59.295Z",
+        "reason": "model: spent decision-round sketch of an unchosen or reference direction, gitignored and never shipped"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/challenger-dense.html"
+        ],
+        "createdAt": "2026-10-26T03:31:59.472Z",
+        "reason": "model: spent decision-round sketch of an unchosen or reference direction, gitignored and never shipped"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-10-26T03:31:59.655Z",
+        "reason": "model: spent decision-round sketch of an unchosen or reference direction, gitignored and never shipped"
       }
     ]
   }
