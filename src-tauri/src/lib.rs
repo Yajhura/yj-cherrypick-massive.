@@ -1,3 +1,4 @@
+pub mod cherry_pick;
 pub mod commits;
 pub mod editor;
 pub mod error;
@@ -9,10 +10,12 @@ pub mod repo;
 pub mod settings;
 
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use tauri::{Manager, State};
 
+use cherry_pick::{Session, SessionStore, StartRequest};
 use commits::{Commit, CommitList, CommitQuery};
 use error::{AppError, AppResult};
 use export::ExportFormat;
@@ -23,6 +26,10 @@ use settings::{Settings, SettingsStore};
 
 struct AppPaths {
     settings: PathBuf,
+    session: PathBuf,
+    worktrees: PathBuf,
+    /// Serializes session commands so two clicks never run git concurrently.
+    session_lock: Arc<Mutex<()>>,
 }
 
 /// Runs blocking git work off the main thread.
@@ -30,6 +37,18 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> AppResult<T> + Send + '
     tauri::async_runtime::spawn_blocking(f)
         .await
         .map_err(|e| AppError::Invalid(e.to_string()))?
+}
+
+fn with_session<T: Send + 'static>(
+    paths: &AppPaths,
+    f: impl FnOnce(&SessionStore) -> AppResult<T> + Send + 'static,
+) -> impl FnOnce() -> AppResult<T> + Send + 'static {
+    let lock = paths.session_lock.clone();
+    let store = SessionStore::new(paths.session.clone());
+    move || {
+        let _guard = lock.lock().map_err(|_| AppError::Invalid("session lock poisoned".into()))?;
+        f(&store)
+    }
 }
 
 #[derive(Serialize)]
@@ -100,6 +119,42 @@ fn render_branch_name(template: String, target: String, tickets: Vec<String>) ->
 }
 
 #[tauri::command]
+async fn current_session(paths: State<'_, AppPaths>) -> AppResult<Option<Session>> {
+    blocking(with_session(&paths, |store| store.load())).await
+}
+
+#[tauri::command]
+async fn start_cherry_pick(paths: State<'_, AppPaths>, request: StartRequest) -> AppResult<Session> {
+    let worktrees = paths.worktrees.clone();
+    blocking(with_session(&paths, move |store| cherry_pick::start(store, &worktrees, request))).await
+}
+
+#[tauri::command]
+async fn continue_cherry_pick(paths: State<'_, AppPaths>) -> AppResult<Session> {
+    blocking(with_session(&paths, cherry_pick::continue_pick)).await
+}
+
+#[tauri::command]
+async fn skip_commit(paths: State<'_, AppPaths>) -> AppResult<Session> {
+    blocking(with_session(&paths, cherry_pick::skip)).await
+}
+
+#[tauri::command]
+async fn retry_push(paths: State<'_, AppPaths>) -> AppResult<Session> {
+    blocking(with_session(&paths, cherry_pick::retry_push)).await
+}
+
+#[tauri::command]
+async fn abort_cherry_pick(paths: State<'_, AppPaths>) -> AppResult<Session> {
+    blocking(with_session(&paths, cherry_pick::abort)).await
+}
+
+#[tauri::command]
+async fn dismiss_session(paths: State<'_, AppPaths>) -> AppResult<()> {
+    blocking(with_session(&paths, cherry_pick::dismiss)).await
+}
+
+#[tauri::command]
 fn open_in_editor(paths: State<'_, AppPaths>, path: String) -> AppResult<()> {
     let editor = SettingsStore::new(paths.settings.clone()).load().editor_command;
     editor::open(&editor, &path)
@@ -119,6 +174,9 @@ pub fn run() {
             let data = app.path().app_data_dir()?;
             app.manage(AppPaths {
                 settings: data.join("settings.json"),
+                session: data.join("session.json"),
+                worktrees: data.join("worktrees"),
+                session_lock: Arc::new(Mutex::new(())),
             });
             Ok(())
         })
@@ -131,6 +189,13 @@ pub fn run() {
             commit_stat,
             commit_diff,
             render_branch_name,
+            current_session,
+            start_cherry_pick,
+            continue_cherry_pick,
+            skip_commit,
+            retry_push,
+            abort_cherry_pick,
+            dismiss_session,
             open_in_editor,
             export_commits,
         ])
