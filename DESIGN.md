@@ -23,6 +23,7 @@ colors:
   diff-add-bg: "#e6ffec"
   diff-del-bg: "#ffebe9"
   diff-hunk: "#0550ae"
+  scrim: "rgba(13, 17, 23, 0.45)"
 typography:
   headline:
     fontFamily: "Segoe UI Variable Text, Segoe UI, system-ui, sans-serif"
@@ -129,7 +130,7 @@ components:
     backgroundColor: "{colors.selection-blue-soft}"
     textColor: "{colors.selection-blue}"
     typography: "{typography.badge}"
-    rounded: "9px"
+    rounded: "{rounded.pill}"
     padding: "0 6px"
   status-applied:
     backgroundColor: "{colors.applied-green-soft}"
@@ -253,7 +254,7 @@ Flat by default. The three panes, toolbar and filter bar sit on the same plane a
 
 ## Shapes
 
-Gently rounded, small radii that read as native controls: 6px on buttons, inputs, branch items and bordered lists; 8px on the menu and toast; 12px only on dialogs. Pills (11px radius on 22px status chips, 9px on 18px badges) mark state and tags. Checkboxes and the focus outline use 3px. Borders are always 1px solid hairline; the only dashed border is the "Pending" status, where it signals "not yet decided".
+Gently rounded, small radii that read as native controls: 6px on buttons, inputs, branch items and bordered lists; 8px on the menu and toast; 12px only on dialogs. Pills (the 11px pill radius on 22px status chips and 18px badges) mark state and tags. The dialog backdrop is the only translucent fill: the scrim token. Checkboxes and the focus outline use 3px. Borders are always 1px solid hairline; the only dashed border is the "Pending" status, where it signals "not yet decided".
 
 ## Components
 
