@@ -1,4 +1,5 @@
 pub mod commits;
+pub mod editor;
 pub mod error;
 pub mod export;
 pub mod git;
@@ -8,8 +9,6 @@ pub mod repo;
 pub mod settings;
 
 use std::path::PathBuf;
-use std::process::Command;
-
 
 use serde::Serialize;
 use tauri::{Manager, State};
@@ -103,13 +102,7 @@ fn render_branch_name(template: String, target: String, tickets: Vec<String>) ->
 #[tauri::command]
 fn open_in_editor(paths: State<'_, AppPaths>, path: String) -> AppResult<()> {
     let editor = SettingsStore::new(paths.settings.clone()).load().editor_command;
-    // Editors like VS Code ship as `.cmd` shims on Windows, so launch through cmd.
-    let mut cmd = Command::new("cmd");
-    cmd.args(["/C", &editor, &path]);
-    git::hide_console(&mut cmd);
-    cmd.spawn()
-        .map_err(|e| AppError::Invalid(format!("could not launch '{editor}': {e}")))?;
-    Ok(())
+    editor::open(&editor, &path)
 }
 
 #[tauri::command]
