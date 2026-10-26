@@ -34,6 +34,19 @@ pub fn launch(executable: &Path, targets: &[&str]) -> AppResult<Child> {
         .map_err(|e| AppError::Invalid(format!("could not launch '{}': {e}", executable.display())))
 }
 
+/// Shows `folder` in Windows Explorer.
+pub fn reveal_folder(folder: &str) -> AppResult<()> {
+    if !Path::new(folder).is_dir() {
+        return Err(AppError::Invalid(format!("folder not found: {folder}")));
+    }
+    // Explorer only accepts backslashes; it is started directly, so the path is passed as data.
+    Command::new("explorer")
+        .arg(folder.replace('/', "\\"))
+        .spawn()
+        .map_err(|e| AppError::Invalid(format!("could not open Explorer: {e}")))?;
+    Ok(())
+}
+
 /// Opens `folder` and then `files` inside it (VS Code opens the folder as the
 /// workspace and the files as tabs).
 pub fn open(editor: &str, folder: &str, files: &[String]) -> AppResult<()> {

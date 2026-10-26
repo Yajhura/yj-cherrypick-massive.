@@ -131,7 +131,7 @@ const en = {
   "settings.ticket": "Ticket pattern (regular expression)",
   "settings.ticketHint": "Extracts ticket ids from commit messages for the Ticket filter and exports. Default: [A-Z]+-\\d+",
   "settings.template": "Branch name template",
-  "settings.templateHint": "Placeholders: {target} (without origin/), {date} (YYYYMMDD), {ticket} (first ticket of the selection).",
+  "settings.templateHint": "Placeholders: {target} (without origin/), {date} (YYYYMMDD), {time} (HHmm), {ticket} (first ticket of the selection).",
   "settings.editor": "Editor command",
   "settings.editorHint": "Program used by “Open in editor”, found in PATH. Example: code, cursor, idea64.",
 
@@ -399,7 +399,7 @@ const es: Record<Key, string> = {
   "settings.ticket": "Patrón de ticket (expresión regular)",
   "settings.ticketHint": "Extrae los ids de ticket de los mensajes de commit para el filtro Ticket y las exportaciones. Por defecto: [A-Z]+-\\d+",
   "settings.template": "Plantilla del nombre de rama",
-  "settings.templateHint": "Variables: {target} (sin origin/), {date} (AAAAMMDD), {ticket} (primer ticket de la selección).",
+  "settings.templateHint": "Variables: {target} (sin origin/), {date} (AAAAMMDD), {time} (HHmm), {ticket} (primer ticket de la selección).",
   "settings.editor": "Comando del editor",
   "settings.editorHint": "Programa que usa “Abrir en el editor”, buscado en el PATH. Ejemplo: code, cursor, idea64.",
 
@@ -591,6 +591,8 @@ const backendErrors: [RegExp, string][] = [
   [/^could not remove worktree (.*?): (.*)$/s, "No se pudo eliminar el worktree $1: $2"],
   [/^could not delete branch (.*?): (.*)$/s, "No se pudo eliminar la rama $1: $2"],
   [/^could not restore branch (.*?): (.*)$/s, "No se pudo restaurar la rama $1: $2"],
+  [/^folder not found: (.*)$/s, "No se encontró la carpeta: $1"],
+  [/^could not open Explorer: (.*)$/s, "No se pudo abrir el Explorador: $1"],
   [/^io error: (.*)$/s, "Error de E/S: $1"],
   [/^serialization error: (.*)$/s, "Error de formato: $1"],
   [/^export error: (.*)$/s, "Error al exportar: $1"],

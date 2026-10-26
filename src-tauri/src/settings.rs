@@ -19,12 +19,15 @@ pub struct Settings {
     pub language: String,
 }
 
+const DEFAULT_TEMPLATE: &str = "cherry-pick/{target}/{date}-{time}";
+const OLD_DEFAULT_TEMPLATE: &str = "cherry-pick/{target}/{date}";
+
 impl Default for Settings {
     fn default() -> Self {
         Self {
             recent_repos: Vec::new(),
             ticket_pattern: r"[A-Z]+-\d+".to_string(),
-            branch_template: "cherry-pick/{target}/{date}".to_string(),
+            branch_template: DEFAULT_TEMPLATE.to_string(),
             editor_command: "code".to_string(),
             language: "auto".to_string(),
         }
@@ -51,10 +54,15 @@ impl SettingsStore {
 
     /// Missing or unreadable settings fall back to defaults.
     pub fn load(&self) -> Settings {
-        fs::read_to_string(&self.path)
+        let mut settings: Settings = fs::read_to_string(&self.path)
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        // Saving settings stores the template too, so the old default would never get `{time}`.
+        if settings.branch_template == OLD_DEFAULT_TEMPLATE {
+            settings.branch_template = DEFAULT_TEMPLATE.to_string();
+        }
+        settings
     }
 
     pub fn save(&self, settings: &Settings) -> AppResult<()> {

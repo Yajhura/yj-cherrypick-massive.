@@ -149,7 +149,8 @@ async fn file_versions(repo: String, hash: String, path: String, old_path: Optio
 
 #[tauri::command]
 fn render_branch_name(template: String, target: String, tickets: Vec<String>) -> String {
-    naming::render_branch_name(&template, &target, &tickets, &naming::today())
+    let (date, time) = naming::now();
+    naming::render_branch_name(&template, &target, &tickets, &date, &time)
 }
 
 #[tauri::command]
@@ -248,6 +249,11 @@ fn open_in_editor(paths: State<'_, AppPaths>, path: String, files: Vec<String>) 
 }
 
 #[tauri::command]
+fn reveal_folder(path: String) -> AppResult<()> {
+    editor::reveal_folder(&path)
+}
+
+#[tauri::command]
 async fn export_commits(commits: Vec<Commit>, format: ExportFormat, path: String) -> AppResult<()> {
     blocking(move || export::export(&commits, format, std::path::Path::new(&path))).await
 }
@@ -286,6 +292,7 @@ pub fn run() {
             lookup_commits,
             commits_in_target,
             existing_branches,
+            reveal_folder,
             current_session,
             remove_pending_commits,
             conflict_status,

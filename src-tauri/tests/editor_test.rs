@@ -1,7 +1,7 @@
 use std::fs;
 use std::time::{Duration, Instant};
 
-use cherrypick_masive_lib::editor::{launch, resolve_executable};
+use cherrypick_masive_lib::editor::{launch, reveal_folder, resolve_executable};
 
 const EXTS: [&str; 2] = [".EXE", ".CMD"];
 
@@ -68,4 +68,12 @@ fn opens_the_folder_and_then_each_file_inside_it() {
     let args = fs::read_to_string(out).unwrap();
     let file = std::path::Path::new(folder).join("src/a.txt");
     assert_eq!(args.trim(), format!("{folder} {}", file.display()));
+}
+
+#[test]
+fn revealing_a_missing_folder_is_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let missing = dir.path().join("gone");
+    let err = reveal_folder(missing.to_str().unwrap()).unwrap_err();
+    assert_eq!(err.to_string(), format!("folder not found: {}", missing.display()));
 }

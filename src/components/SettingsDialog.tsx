@@ -52,7 +52,7 @@ export function SettingsDialog({ open, settings, error, onCancel, onSave }: Prop
       <label className="field">
         <span>{t("settings.template")}</span>
         <input className="input mono" value={draft.branchTemplate} onChange={(e) => set({ branchTemplate: e.target.value })} />
-        <p className="hint">{t("settings.templateHint", { target: "{target}", date: "{date}", ticket: "{ticket}" })}</p>
+        <p className="hint">{t("settings.templateHint", { target: "{target}", date: "{date}", time: "{time}", ticket: "{ticket}" })}</p>
       </label>
       <label className="field">
         <span>{t("settings.editor")}</span>

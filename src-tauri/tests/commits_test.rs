@@ -217,6 +217,25 @@ fn looks_up_pasted_hashes_in_input_order_and_reports_rejects() {
 }
 
 #[test]
+fn looking_up_ignores_comments_after_a_hash_sign() {
+    use cherrypick_masive_lib::commits::lookup_commits;
+    let f = develop_fixture();
+    let git = Git::new(&f.repo);
+    let (b, a) = (f.git(&["rev-parse", "develop^1"]), f.git(&["rev-parse", "develop~2"]));
+    // A txt exported by the app: subjects with hex-looking words must not be read as hashes.
+    let text = format!("# picked for release
+{a}  # add cafe face (Ana)
+{b}#deadbeef
+");
+
+    let found = lookup_commits(&git, &text, PATTERN).unwrap();
+
+    let hashes: Vec<&str> = found.commits.iter().map(|c| c.hash.as_str()).collect();
+    assert_eq!(hashes, [a.as_str(), b.as_str()]);
+    assert!(found.unknown.is_empty(), "{:?}", found.unknown);
+}
+
+#[test]
 fn finds_which_commits_are_already_in_a_target() {
     use cherrypick_masive_lib::commits::commits_in_target;
     let f = Fixture::new();

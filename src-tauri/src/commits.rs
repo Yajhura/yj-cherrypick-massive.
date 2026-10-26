@@ -178,6 +178,9 @@ pub fn lookup_commits(git: &Git, text: &str, ticket_pattern: &str) -> AppResult<
     let re = ticket_regex(ticket_pattern)?;
     let mut found = Lookup { commits: Vec::new(), unknown: Vec::new(), merges: Vec::new() };
     let mut hashes: Vec<String> = Vec::new();
+    // Everything after `#` on a line is a comment, as in the txt the app exports.
+    let text: String = text.lines().map(|l| l.split('#').next().unwrap_or("")).collect::<Vec<_>>().join("
+");
     for token in text.split(|c: char| c.is_whitespace() || c == ',' || c == ';').filter(|t| !t.is_empty()) {
         let hex = (4..=40).contains(&token.len()) && token.chars().all(|c| c.is_ascii_hexdigit());
         let full = if hex {

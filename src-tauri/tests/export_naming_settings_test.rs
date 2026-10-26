@@ -1,7 +1,7 @@
 mod common;
 
 use cherrypick_masive_lib::commits::Commit;
-use cherrypick_masive_lib::export::{export, to_csv, to_markdown, ExportFormat};
+use cherrypick_masive_lib::export::{export, to_csv, to_markdown, to_txt, ExportFormat};
 use cherrypick_masive_lib::git::Git;
 use cherrypick_masive_lib::naming::{render_branch_name, validate_branch_name};
 use cherrypick_masive_lib::settings::{Settings, SettingsStore};
@@ -44,10 +44,24 @@ fn markdown_escapes_pipes_and_uses_short_hash() {
 }
 
 #[test]
+fn txt_lists_full_hashes_with_subject_and_author_as_comments() {
+    let mut second = commit("JIRA-2 # not a comment start", &[], false);
+    second.hash = "fedcba9876543210fedcba9876543210fedcba98".into();
+    second.author_name = "Bruno".into();
+    let txt = to_txt(&[commit("JIRA-1 fix", &[], false), second]);
+    assert_eq!(
+        txt,
+        "0123456789abcdef0123456789abcdef01234567  # JIRA-1 fix (Ana)
+fedcba9876543210fedcba9876543210fedcba98  # JIRA-2 # not a comment start (Bruno)
+"
+    );
+}
+
+#[test]
 fn writes_each_format_to_disk() {
     let dir = tempfile::tempdir().unwrap();
     let commits = [commit("one", &["JIRA-1"], false)];
-    for (format, name) in [(ExportFormat::Csv, "h.csv"), (ExportFormat::Markdown, "h.md"), (ExportFormat::Xlsx, "h.xlsx")] {
+    for (format, name) in [(ExportFormat::Csv, "h.csv"), (ExportFormat::Markdown, "h.md"), (ExportFormat::Xlsx, "h.xlsx"), (ExportFormat::Txt, "h.txt")] {
         let path = dir.path().join(name);
         export(&commits, format, &path).unwrap();
         let bytes = std::fs::read(&path).unwrap();
@@ -62,13 +76,17 @@ fn writes_each_format_to_disk() {
 fn renders_branch_templates() {
     let tickets = vec!["JIRA-9".to_string()];
     assert_eq!(
-        render_branch_name("cherry-pick/{target}/{date}", "origin/release/1.x", &tickets, "20261025"),
+        render_branch_name("cherry-pick/{target}/{date}", "origin/release/1.x", &tickets, "20261025", "0930"),
         "cherry-pick/release/1.x/20261025"
     );
-    assert_eq!(render_branch_name("{ticket}-to-{target}", "release", &tickets, "d"), "JIRA-9-to-release");
+    assert_eq!(
+        render_branch_name("cherry-pick/{target}/{date}-{time}", "origin/release/1.x", &tickets, "20261025", "0930"),
+        "cherry-pick/release/1.x/20261025-0930"
+    );
+    assert_eq!(render_branch_name("{ticket}-to-{target}", "release", &tickets, "d", "t"), "JIRA-9-to-release");
     // A missing ticket leaves no empty segment or dangling separator.
-    assert_eq!(render_branch_name("cp/{ticket}/{target}", "origin/main", &[], "d"), "cp/main");
-    assert_eq!(render_branch_name("cp/{target}-{ticket}", "main", &[], "d"), "cp/main");
+    assert_eq!(render_branch_name("cp/{ticket}/{target}", "origin/main", &[], "d", "t"), "cp/main");
+    assert_eq!(render_branch_name("cp/{target}-{ticket}", "main", &[], "d", "t"), "cp/main");
 }
 
 #[test]
@@ -89,6 +107,7 @@ fn settings_default_roundtrip_and_recents() {
     assert_eq!(settings, Settings::default());
     assert_eq!(settings.ticket_pattern, r"[A-Z]+-\d+");
     assert_eq!(settings.language, "auto");
+    assert_eq!(settings.branch_template, "cherry-pick/{target}/{date}-{time}");
 
     for i in 0..12 {
         settings.add_recent(&format!("C:/repo{i}"));
@@ -109,5 +128,14 @@ fn settings_written_before_language_existed_still_load() {
     std::fs::write(&path, r#"{"recentRepos":["C:/r"],"ticketPattern":"X-\\d+","branchTemplate":"b/{date}","editorCommand":"code"}"#).unwrap();
     let settings = SettingsStore::new(path).load();
     assert_eq!(settings.recent_repos, ["C:/r"]);
+    assert_eq!(settings.branch_template, "b/{date}", "a saved template is kept");
     assert_eq!(settings.language, "auto");
+}
+
+#[test]
+fn the_old_default_template_gains_the_time() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("settings.json");
+    std::fs::write(&path, r#"{"recentRepos":[],"ticketPattern":"X-\d+","branchTemplate":"cherry-pick/{target}/{date}","editorCommand":"code"}"#).unwrap();
+    assert_eq!(SettingsStore::new(path).load().branch_template, "cherry-pick/{target}/{date}-{time}");
 }

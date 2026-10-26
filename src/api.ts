@@ -152,7 +152,7 @@ export interface QueueState {
   session: Session | null;
 }
 
-export type ExportFormat = "csv" | "markdown" | "xlsx";
+export type ExportFormat = "csv" | "markdown" | "xlsx" | "txt";
 
 /** Errors from Rust arrive as plain strings; normalize anything else. */
 export function errorMessage(e: unknown): string {
@@ -204,6 +204,7 @@ export const api = {
   abortCherryPick: () => invoke<Session>("abort_cherry_pick"),
   dismissSession: () => invoke<void>("dismiss_session"),
   openInEditor: (path: string, files: string[] = []) => invoke<void>("open_in_editor", { path, files }),
+  revealFolder: (path: string) => invoke<void>("reveal_folder", { path }),
   exportCommits: (commits: Commit[], format: ExportFormat, path: string) =>
     invoke<void>("export_commits", { commits, format, path }),
 };

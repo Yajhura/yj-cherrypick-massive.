@@ -32,7 +32,7 @@ Unlike general git GUIs, it treats a batch of cherry-picks as one resumable sess
 - Selection filters: checkbox list, ticket (configurable regex, default `[A-Z]+-\d+`), free text, author, date range, branch difference (commits in source missing from target).
 - Always `cherry-pick -x`; chronological order; merge commits (2+ parents) excluded; squash commits are normal.
 - Conflict actions: Continue, Skip, Abort; open worktree in editor.
-- Branch name from an editable template (`{target}`, `{date}`, `{ticket}`).
+- Branch name from an editable template (`{target}`, `{date}`, `{time}`, `{ticket}`). A branch that already exists gets the commits on top, after a warning.
 - One active session at a time.
 - Undecided: auto-update distribution details (GitHub repo and signing key not provided yet).
 

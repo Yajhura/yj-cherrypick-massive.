@@ -12,6 +12,8 @@ pub enum ExportFormat {
     Csv,
     Markdown,
     Xlsx,
+    /// Full hashes with the subject as a comment, ready for "Add by hash".
+    Txt,
 }
 
 const HEADERS: [&str; 7] = ["Hash", "Date", "Author", "Email", "Subject", "Tickets", "Merge"];
@@ -55,6 +57,14 @@ pub fn to_markdown(commits: &[Commit]) -> String {
     out
 }
 
+pub fn to_txt(commits: &[Commit]) -> String {
+    commits
+        .iter()
+        .map(|c| format!("{}  # {} ({})
+", c.hash, c.subject, c.author_name))
+        .collect()
+}
+
 pub fn write_xlsx(commits: &[Commit], path: &Path) -> AppResult<()> {
     let err = |e: XlsxError| AppError::Export(e.to_string());
     let mut workbook = Workbook::new();
@@ -85,6 +95,7 @@ pub fn export(commits: &[Commit], format: ExportFormat, path: &Path) -> AppResul
         ExportFormat::Csv => std::fs::write(path, to_csv(commits)?)?,
         ExportFormat::Markdown => std::fs::write(path, to_markdown(commits))?,
         ExportFormat::Xlsx => write_xlsx(commits, path)?,
+        ExportFormat::Txt => std::fs::write(path, to_txt(commits))?,
     }
     Ok(())
 }

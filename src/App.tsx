@@ -25,12 +25,12 @@ const PROGRESS_POLL_MS = 600;
 const defaultSettings: Settings = {
   recentRepos: [],
   ticketPattern: "[A-Z]+-\\d+",
-  branchTemplate: "cherry-pick/{target}/{date}",
+  branchTemplate: "cherry-pick/{target}/{date}-{time}",
   editorCommand: "code",
   language: "auto",
 };
 
-const extensions: Record<ExportFormat, string> = { xlsx: "xlsx", csv: "csv", markdown: "md" };
+const extensions: Record<ExportFormat, string> = { xlsx: "xlsx", csv: "csv", markdown: "md", txt: "txt" };
 
 // Per-machine UI preferences; storage may be unavailable, which only loses the preference.
 function readPref(key: string): string | null {
