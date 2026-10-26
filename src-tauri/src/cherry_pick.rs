@@ -218,6 +218,21 @@ fn worktree_dir(root: &Path, branch: &str) -> PathBuf {
     root.join(format!("{name}-{}", chrono::Local::now().format("%Y%m%d%H%M%S")))
 }
 
+/// The branch a session will create: a valid name that exists neither locally nor on a remote.
+pub fn check_new_branch(git: &Git, branch: &str) -> AppResult<()> {
+    validate_branch_name(git, branch)?;
+    let local_ref = format!("refs/heads/{branch}");
+    if git.output(&["rev-parse", "--verify", "--quiet", &local_ref])?.success {
+        return Err(AppError::Invalid(format!("branch '{branch}' already exists")));
+    }
+    // Caught here, a name clash would otherwise only fail at push time after all the work.
+    let remote_pattern = format!("*/{branch}");
+    if !git.run(&["branch", "-r", "--list", &remote_pattern])?.trim().is_empty() {
+        return Err(AppError::Invalid(format!("branch '{branch}' already exists on the remote")));
+    }
+    Ok(())
+}
+
 pub fn start(store: &SessionStore, worktrees_root: &Path, req: StartRequest) -> AppResult<Session> {
     if store.load()?.is_some_and(|s| !s.is_finished()) {
         return Err(AppError::Invalid("another cherry-pick session is in progress".into()));
@@ -227,16 +242,7 @@ pub fn start(store: &SessionStore, worktrees_root: &Path, req: StartRequest) -> 
     }
     let git = Git::new(&req.repo);
     repo::fetch(&git)?;
-    validate_branch_name(&git, &req.branch)?;
-    let local_ref = format!("refs/heads/{}", req.branch);
-    if git.output(&["rev-parse", "--verify", "--quiet", &local_ref])?.success {
-        return Err(AppError::Invalid(format!("branch '{}' already exists", req.branch)));
-    }
-    // Caught here, a name clash would otherwise only fail at push time after all the work.
-    let remote_pattern = format!("*/{}", req.branch);
-    if !git.run(&["branch", "-r", "--list", &remote_pattern])?.trim().is_empty() {
-        return Err(AppError::Invalid(format!("branch '{}' already exists on the remote", req.branch)));
-    }
+    check_new_branch(&git, &req.branch)?;
 
     let hashes = resolve_hashes(&git, &req.hashes)?;
     let ordered = chronological(&git, &hashes, &req.target)?;

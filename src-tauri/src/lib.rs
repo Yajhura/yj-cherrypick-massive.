@@ -6,6 +6,7 @@ pub mod export;
 pub mod git;
 pub mod history;
 pub mod naming;
+pub mod queue;
 pub mod repo;
 pub mod settings;
 
@@ -20,6 +21,7 @@ use commits::{Author, Commit, CommitList, CommitQuery, Lookup};
 use error::{AppError, AppResult};
 use export::ExportFormat;
 use git::Git;
+use queue::{QueueRequest, QueueState, QueueStore};
 use history::{CommitDiff, FileChange, FileStat, FileVersions};
 use repo::Branch;
 use settings::{Settings, SettingsStore};
@@ -27,6 +29,7 @@ use settings::{Settings, SettingsStore};
 struct AppPaths {
     settings: PathBuf,
     session: PathBuf,
+    queue: PathBuf,
     worktrees: PathBuf,
     /// Serializes session commands so two clicks never run git concurrently.
     session_lock: Arc<Mutex<()>>,
@@ -209,6 +212,31 @@ async fn dismiss_session(paths: State<'_, AppPaths>) -> AppResult<()> {
 }
 
 #[tauri::command]
+async fn start_queue(paths: State<'_, AppPaths>, request: QueueRequest) -> AppResult<QueueState> {
+    let (queue, worktrees) = (QueueStore::new(paths.queue.clone()), paths.worktrees.clone());
+    blocking(with_session(&paths, move |store| queue::start_queue(&queue, store, &worktrees, request))).await
+}
+
+#[tauri::command]
+async fn advance_queue(paths: State<'_, AppPaths>) -> AppResult<QueueState> {
+    let (queue, worktrees) = (QueueStore::new(paths.queue.clone()), paths.worktrees.clone());
+    blocking(with_session(&paths, move |store| queue::advance_queue(&queue, store, &worktrees))).await
+}
+
+/// Lock-free like `current_session`, so the UI can follow a running queue.
+#[tauri::command]
+async fn current_queue(paths: State<'_, AppPaths>) -> AppResult<Option<QueueState>> {
+    let (queue, session) = (QueueStore::new(paths.queue.clone()), SessionStore::new(paths.session.clone()));
+    blocking(move || queue::current_queue(&queue, &session)).await
+}
+
+#[tauri::command]
+async fn dismiss_queue(paths: State<'_, AppPaths>) -> AppResult<()> {
+    let queue = QueueStore::new(paths.queue.clone());
+    blocking(with_session(&paths, move |_| queue::dismiss_queue(&queue))).await
+}
+
+#[tauri::command]
 fn open_in_editor(paths: State<'_, AppPaths>, path: String, files: Vec<String>) -> AppResult<()> {
     let editor = SettingsStore::new(paths.settings.clone()).load().editor_command;
     editor::open(&editor, &path, &files)
@@ -230,6 +258,7 @@ pub fn run() {
             app.manage(AppPaths {
                 settings: data.join("settings.json"),
                 session: data.join("session.json"),
+                queue: data.join("queue.json"),
                 worktrees: data.join("worktrees"),
                 session_lock: Arc::new(Mutex::new(())),
             });
@@ -260,6 +289,10 @@ pub fn run() {
             retry_push,
             abort_cherry_pick,
             dismiss_session,
+            start_queue,
+            advance_queue,
+            current_queue,
+            dismiss_queue,
             open_in_editor,
             export_commits,
         ])
