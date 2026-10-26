@@ -21,10 +21,10 @@ Branch: `feat/cherry-pick-app` · Delivery: ask-on-risk · Test runner: `cargo t
 
 ## Tasks
 
-- [ ] T1 S1,S2 — git CLI runner, repo open/recents, fetch, branch list · route: inline
-- [ ] T2 S3,S4,S5,S11 — commit log parsing + filters + duplicate/merge detection, stat & diff · route: inline
-- [ ] T3 S6-S10 — cherry-pick engine: worktree, session state machine, persistence, push · route: inline
-- [ ] T4 S12 — export CSV/MD/XLSX · route: inline
+- [x] T1 S1,S2 — git CLI runner, repo open/recents, fetch, branch list · route: inline · cb852a9, fix e7ffc87
+- [x] T2 S3,S4,S5,S11 — commit log parsing + filters + duplicate/merge detection, stat & diff · route: inline · cb852a9
+- [ ] T3 S6-S10 — cherry-pick engine: worktree, session state machine, persistence, push · route: inline · f559675 · Risk: item 1 → independent verifier running
+- [x] T4 S12 — export CSV/MD/XLSX · route: inline · cb852a9
 - [ ] T5 S2,S3,S7,S9-S12 — React UI (repo picker, filters, commit table, run panel, history, export) · route: inline
 - [ ] T6 S13 — updater/installer config · route: inline · blocked on user input (GitHub repo, signing key)
 
@@ -33,3 +33,5 @@ Branch: `feat/cherry-pick-app` · Delivery: ask-on-risk · Test runner: `cargo t
 - L1 (2026-10-25) User request: "quiero armar una aplicacion desktop donde pueda hacer cherrypick masivo tambien tenga una opcion donde pueda ver el historial de una rama y exportar."
 - L2 (2026-10-25) Grilling session settled S1-S13 (see memory `cherrypick-app-design`). User confirmed: "Sí, está completo".
 - L3 (2026-10-25) User: "arranca". Scaffolded with create-tauri-app 4.8.0 (react-ts, npm, Tauri 2).
+- L4 Backend core cb852a9: 13 integration tests (real git repos in temp dirs). Native review (risk+reliability) found R1 critical: `open_in_editor` used `cmd /C <editor> <path>` → command injection with `&` in paths without spaces. Fixed in e7ffc87 (resolve editor in PATH, spawn directly); RED reproduced against `cmd /C`, GREEN after. Re-review approved and acknowledged (boundary e7ffc87).
+- L5 Engine f559675: 9 tests (order, -x, empty, conflict/continue/skip/abort, persistence, push failure/retry, merge/branch/concurrency guards). Mutation check: removing chronological sort fails the order test.
