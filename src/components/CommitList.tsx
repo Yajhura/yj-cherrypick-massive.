@@ -14,6 +14,8 @@ interface Props {
   /** Selects every selectable commit between two rows, both included (Shift+click). */
   onSelectRange: (from: number, to: number) => void;
   onSelectAll: () => void;
+  /** Opens the active commit in the Code tab (Enter). */
+  onOpen: () => void;
   onClearSelection: () => void;
 }
 
@@ -32,7 +34,7 @@ export function formatDate(iso: string) {
 }
 
 export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
-  { commits, sessionStatus, selected, activeIndex, onActivate, onToggle, onSelectRange, onSelectAll, onClearSelection },
+  { commits, sessionStatus, selected, activeIndex, onActivate, onToggle, onSelectRange, onSelectAll, onClearSelection, onOpen },
   ref,
 ) {
   const { t } = useI18n();
@@ -91,6 +93,12 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
           onSelectAll();
         }
         return;
+      case "Enter":
+        if (!e.ctrlKey && commits[activeIndex]) {
+          e.preventDefault();
+          onOpen();
+        }
+        return;
       case "Escape":
         onClearSelection();
         return;
@@ -131,6 +139,10 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
             aria-disabled={!selectable}
             className={`row${i === activeIndex ? " active" : ""}${selectable ? "" : " disabled"}`}
             onClick={(e) => (e.shiftKey ? toggleAt(i, true) : onActivate(i))}
+            onDoubleClick={() => {
+              onActivate(i);
+              onOpen();
+            }}
           >
             <input
               type="checkbox"

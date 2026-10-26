@@ -65,6 +65,23 @@ export interface FileStat {
   deletions: number | null;
 }
 
+export interface FileChange {
+  path: string;
+  /** Previous path of a renamed or copied file. */
+  oldPath: string | null;
+  status: "added" | "modified" | "deleted" | "renamed" | "copied" | "typechange";
+  /** null for binary files. */
+  additions: number | null;
+  deletions: number | null;
+}
+
+export interface FileVersions {
+  old: string | null;
+  new: string | null;
+  binary: boolean;
+  tooLarge: boolean;
+}
+
 export interface CommitDiff {
   patch: string;
   truncated: boolean;
@@ -133,6 +150,13 @@ export const api = {
   listAuthors: (repo: string, source: string) => invoke<Author[]>("list_authors", { repo, source }),
   commitStat: (repo: string, hash: string) => invoke<FileStat[]>("commit_stat", { repo, hash }),
   commitDiff: (repo: string, hash: string) => invoke<CommitDiff>("commit_diff", { repo, hash }),
+  commitFiles: (repo: string, hash: string) => invoke<FileChange[]>("commit_files", { repo, hash }),
+  commitPatch: (repo: string, hash: string, ignoreWhitespace: boolean) =>
+    invoke<CommitDiff>("commit_patch", { repo, hash, ignoreWhitespace }),
+  fileDiff: (repo: string, hash: string, path: string, oldPath: string | null, ignoreWhitespace: boolean) =>
+    invoke<CommitDiff>("file_diff", { repo, hash, path, oldPath, ignoreWhitespace }),
+  fileVersions: (repo: string, hash: string, path: string, oldPath: string | null) =>
+    invoke<FileVersions>("file_versions", { repo, hash, path, oldPath }),
   renderBranchName: (template: string, target: string, tickets: string[]) =>
     invoke<string>("render_branch_name", { template, target, tickets }),
   lookupCommits: (repo: string, text: string, ticketPattern: string) =>

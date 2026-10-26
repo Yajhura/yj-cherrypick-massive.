@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { GitCommitHorizontal, LoaderCircle, TriangleAlert } from "lucide-react";
+import { Code, GitCommitHorizontal, LoaderCircle, TriangleAlert } from "lucide-react";
 import { Commit, CommitDiff, FileStat } from "../api";
 import { formatDate } from "./CommitList";
 import { useI18n } from "../i18n";
@@ -10,6 +10,7 @@ interface Props {
   diff: CommitDiff | null;
   loading: boolean;
   error: string | null;
+  onViewCode: () => void;
 }
 
 function lineClass(line: string) {
@@ -20,7 +21,7 @@ function lineClass(line: string) {
   return undefined;
 }
 
-export function CommitDetail({ commit, stat, diff, loading, error }: Props) {
+export function CommitDetail({ commit, stat, diff, loading, error, onViewCode }: Props) {
   const { t } = useI18n();
   const lines = useMemo(() => (diff ? diff.patch.split("\n") : []), [diff]);
 
@@ -41,7 +42,12 @@ export function CommitDetail({ commit, stat, diff, loading, error }: Props) {
   return (
     <section className="detail" aria-label={t("detail.label")}>
       <div className="detail-head">
-        <h1>{commit.subject}</h1>
+        <div className="detail-title">
+          <h1>{commit.subject}</h1>
+          <button className="btn" onClick={onViewCode} title={t("detail.viewCodeTitle")}>
+            <Code size={16} /> {t("detail.viewCode")}
+          </button>
+        </div>
         <div className="meta">
           <span>{commit.authorName} &lt;{commit.authorEmail}&gt;</span>
           <span className="mono">{formatDate(commit.date)}</span>

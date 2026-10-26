@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ask, open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { Cherry, CircleCheck, History, OctagonAlert, TriangleAlert } from "lucide-react";
+import { Cherry, CircleCheck, Code, History, OctagonAlert, TriangleAlert } from "lucide-react";
 import { api, Author, Branch, Commit, errorMessage, ExportFormat, isSessionFinished, OpenedRepo, Session, Settings } from "./api";
 import { addToBasket, Basket, emptyBasket, loadIntoBasket, polledSession, progressOf, rangeBetween } from "./basket";
 import { emptyFilters, Filters, useCommitDetail, useCommits } from "./hooks";
@@ -10,12 +10,13 @@ import { CommitList, isSelectable } from "./components/CommitList";
 import { CommitDetail } from "./components/CommitDetail";
 import { Display, displayOf, SessionPanel } from "./components/SessionPanel";
 import { CherryPickSetup } from "./components/CherryPickSetup";
+import { CodeViewer } from "./components/CodeViewer";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { StartScreen } from "./components/StartScreen";
 import { notifyInBackground } from "./notify";
 import { I18nProvider, useI18n } from "./i18n";
 
-type Tab = "history" | "cherry-pick";
+type Tab = "history" | "cherry-pick" | "code";
 
 /** How often the saved session is read while the engine applies commits. */
 const PROGRESS_POLL_MS = 600;
@@ -397,6 +398,9 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
       } else if (e.key === "2" && e.altKey) {
         e.preventDefault();
         setTab("cherry-pick");
+      } else if (e.key === "3" && e.altKey) {
+        e.preventDefault();
+        setTab("code");
       } else if (e.key === "Escape" && typing && e.target === searchRef.current) {
         listRef.current?.focus();
       }
@@ -467,6 +471,9 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
           {tabBadge && <span className="tab-badge mono">{tabBadge}</span>}
           {stopped && <span className="sr-only">{t("tabs.needsYou")}</span>}
         </button>
+        <button role="tab" id="tab-code" aria-controls="panel-code" aria-selected={tab === "code"} className="tab" onClick={() => setTab("code")} title="Alt+3">
+          <Code size={15} aria-hidden="true" /> {t("tabs.code")}
+        </button>
       </div>
 
       <div id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden={tab !== "history"} className={`workspace${showChanges ? "" : " no-detail"}`}>
@@ -526,13 +533,14 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
               onActivate={setActiveIndex}
               onToggle={toggle}
               onSelectRange={selectRange}
+              onOpen={() => setTab("code")}
               onSelectAll={selectAll}
               onClearSelection={() => setSelected(new Map())}
             />
           )}
         </main>
         <aside className="detail" aria-label={t("detail.label")} hidden={!showChanges}>
-          <CommitDetail commit={active} stat={detail?.stat ?? null} diff={detail?.diff ?? null} loading={detailLoading} error={detailError} />
+          <CommitDetail commit={active} stat={detail?.stat ?? null} diff={detail?.diff ?? null} loading={detailLoading} error={detailError} onViewCode={() => setTab("code")} />
         </aside>
       </div>
 
@@ -571,6 +579,18 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
             onStart={startCherryPick}
           />
         )}
+      </div>
+      <div id="panel-code" role="tabpanel" aria-labelledby="tab-code" hidden={tab !== "code"} className="code-panel">
+        <CodeViewer
+          repoRoot={repo.root}
+          commit={active}
+          active={tab === "code"}
+          hasPrev={safeIndex > 0}
+          hasNext={safeIndex < visible.length - 1}
+          onPrev={() => setActiveIndex(Math.max(0, safeIndex - 1))}
+          onNext={() => setActiveIndex(Math.min(visible.length - 1, safeIndex + 1))}
+          notify={notify}
+        />
       </div>
       <SettingsDialog open={dialog === "settings"} settings={settings} error={dialogError} onCancel={() => setDialog(null)} onSave={saveSettings} />
       {toastEl}

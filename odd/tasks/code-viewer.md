@@ -13,10 +13,11 @@ Branch: feat/cherry-pick-app · Delivery: ask-on-risk · Runners: `cargo test` (
 - S8 Per file: open in VS Code (local repo), copy path, view the full file as it is in that commit.
 
 ## Tasks
-- [ ] T1 S2,S4,S6,S8 backend: commit_files (status, renames, counts), file_diff (per file, -w), file_versions (old/new content, binary, size limit) · inline
-- [ ] T2 S3,S4,S6,S7 pure TS: parse diff, side-by-side pairing, word diff, gaps/expansion, change list, highlighted line segments + tests · inline
-- [ ] T3 S1,S2,S3,S5,S7,S8 UI: Code tab, tree, diff view, toolbar, keyboard, highlight.js · inline
+- [x] T1 S2,S4,S6,S8 backend: commit_files (status, renames, counts), file_diff (per file, -w), file_versions (old/new content, binary, size limit) · inline · bd6ea6f (RED compile failure, GREEN 7/7; commit_patch test written with its code, no separate RED)
+- [x] T2 S3,S4,S6,S7 pure TS: parse diff, side-by-side pairing, word diff, gaps/expansion, change list, highlighted line segments + tests · inline · e3a1c58 (RED module missing, GREEN 10/10)
+- [x] T3 S1,S2,S3,S5,S7,S8 UI: Code tab, tree, diff view, toolbar, keyboard, highlight.js · inline · UI commit
 
 ## Log
 - L1 2026-10-26 user request (verbatim): "otra feature mas seria el tema, de mejorar el mostrar codigo al elegir el commit seria un boton  donde me lleve a un nuevo tab y navegar por archivos y visualizar mejor el codigo modificado"
 - L2 Grilling: side-by-side + unified (Recommended); folder tree; changes + expand context; one "Code" tab that shows the chosen commit; syntax highlighting for the team's languages; extras: copy path / full version, open in VS Code, ignore whitespace, word highlight, "Un boton en la cual de arriba y abajo donde navega en cada cambio"; ↓ jumps to the next file; build it first. User: "si".
+- L3 Evidence: cargo test 55/55, npm test 26/26, tsc clean, vite build (+87 KB for highlight.js core and 8 languages). Real app E2E over WebView2 CDP with a scratch repo (user settings backed up, verified unchanged, restored): 26/26 checks PASS for S1-S8 (detail button, Enter and J/K, compact tree and filter, split default, C# highlighting, word changes 1->2 and old->new, two gaps and +20 expansion, 6 change stops walked with F7 across 5 files and back with Alt+Up, ignore whitespace, unified remembered, full file 129 lines, editor args, copy path toast). E2E found that with -w git drops whitespace-only files from the patch and the view stayed blank; fixed by treating a file missing from a complete patch as having no hunks.
