@@ -16,11 +16,13 @@ export function isSelectable(c: Commit) {
   return !c.isMerge;
 }
 
-const dateFormat = new Intl.DateTimeFormat(undefined, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+const pad = (n: number) => String(n).padStart(2, "0");
 
+/** Local time as `YYYY-MM-DD HH:mm`: sortable, compact and unambiguous across locales. */
 export function formatDate(iso: string) {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : dateFormat.format(d);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
@@ -121,7 +123,8 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
               }}
             />
             <span className="subject">
-              {c.tickets.slice(0, 2).map((t) => (
+              {/* Tickets already in the subject are not repeated; body-only ones surface here. */}
+              {c.tickets.filter((t) => !c.subject.includes(t)).slice(0, 2).map((t) => (
                 <span key={t} className="badge ticket">
                   {t}
                 </span>

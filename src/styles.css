@@ -147,12 +147,13 @@ input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px;
   padding: 10px 12px; background: var(--pane); border-bottom: 1px solid var(--line);
 }
 .filters .wide { grid-column: span 2; }
-.filters .row2 { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; font-size: 12px; }
+.filters .row2 { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 12px; }
+.filters .row2 label, .filters .row2 .count { white-space: nowrap; }
 .filters .row2 .count { margin-left: auto; color: var(--ink-muted); }
 
 .list { flex: 1; overflow: auto; background: var(--pane); outline: none; }
 .list-head, .row {
-  display: grid; grid-template-columns: 34px minmax(0, 1fr) 150px 84px 112px;
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) 140px 76px 124px;
   align-items: center; gap: 8px; padding: 0 12px;
 }
 .list-head {
@@ -282,3 +283,11 @@ dialog::backdrop { background: rgba(13, 17, 23, 0.45); }
 .recents button:hover { background: var(--pane-sunken); }
 .recents small { color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 kbd { font: 11px var(--mono); padding: 0 4px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; background: var(--pane-sunken); color: var(--ink-muted); }
+
+/* Narrow windows (down to the 1100px minimum): keep the subject readable. */
+@media (max-width: 1279px) {
+  .workspace { grid-template-columns: 200px minmax(380px, 1fr) minmax(320px, 30%); }
+  .filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .list-head, .row { grid-template-columns: 30px minmax(0, 1fr) 76px 124px; }
+  .list-head > :nth-child(3), .row > .author { display: none; }
+}
