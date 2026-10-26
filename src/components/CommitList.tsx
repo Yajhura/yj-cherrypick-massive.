@@ -83,7 +83,7 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
   return (
     <div
       ref={ref}
-      className="list"
+      className={`list${sessionStatus.size > 0 ? " in-session" : ""}`}
       role="listbox"
       aria-label="Commits"
       aria-multiselectable="true"
@@ -94,13 +94,14 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
       <div className="list-head" aria-hidden="true">
         <span />
         <span>Subject</span>
-        <span>Author</span>
+        <span>{sessionStatus.size > 0 ? "Author · status" : "Author"}</span>
         <span>Hash</span>
         <span>Date</span>
       </div>
       {commits.map((c, i) => {
         const selectable = isSelectable(c);
         const isSelected = selected.has(c.hash);
+        const status = sessionStatus.get(c.hash);
         return (
           <div
             key={c.hash}
@@ -136,11 +137,11 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
                 {c.subject}
               </span>
               {c.isMerge && <span className="badge merge">merge</span>}
-              {c.alreadyInTarget && <span className="badge applied">in target</span>}
-              {sessionStatus.has(c.hash) && <StatusChip kind={sessionStatus.get(c.hash)!} />}
+              {c.alreadyInTarget && !status && <span className="badge applied">in target</span>}
             </span>
-            <span className="author" title={c.authorEmail}>
-              {c.authorName}
+            {/* During a session the author column carries the pick status, so the subject keeps its width. */}
+            <span className="author" title={`${c.authorName} <${c.authorEmail}>`}>
+              {status ? <StatusChip kind={status} /> : c.authorName}
             </span>
             <span className="mono muted">{c.shortHash}</span>
             <span className="date mono">{formatDate(c.date)}</span>
