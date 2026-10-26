@@ -37,6 +37,8 @@ pub struct CommitQuery {
     pub target: Option<String>,
     /// Case-insensitive substring of author name or email.
     pub author: Option<String>,
+    /// Author emails (case-insensitive); empty means any author.
+    pub authors: Vec<String>,
     /// Inclusive author-date bounds, `YYYY-MM-DD`.
     pub since: Option<String>,
     pub until: Option<String>,
@@ -46,6 +48,32 @@ pub struct CommitQuery {
     pub ticket: Option<String>,
     pub ticket_pattern: String,
     pub limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Author {
+    pub name: String,
+    pub email: String,
+    pub commits: usize,
+}
+
+/// Authors of `source`, grouped by email (mailmap applied), most commits first.
+pub fn list_authors(git: &Git, source: &str) -> AppResult<Vec<Author>> {
+    if source.trim().is_empty() {
+        return Err(AppError::Invalid("source branch is required".into()));
+    }
+    let out = git.run(&["log", "--format=%aN%x1f%aE", source, "--"])?;
+    let mut authors: Vec<Author> = Vec::new();
+    for (name, email) in out.lines().filter_map(|l| l.split_once(FIELD)) {
+        // Log order is newest first, so the kept name is the most recent one.
+        match authors.iter_mut().find(|a| a.email.eq_ignore_ascii_case(email)) {
+            Some(a) => a.commits += 1,
+            None => authors.push(Author { name: name.into(), email: email.into(), commits: 1 }),
+        }
+    }
+    authors.sort_by(|a, b| b.commits.cmp(&a.commits).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
+    Ok(authors)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -135,6 +163,9 @@ fn matches(c: &Commit, q: &CommitQuery) -> bool {
         if !c.author_name.to_lowercase().contains(&a) && !c.author_email.to_lowercase().contains(&a) {
             return false;
         }
+    }
+    if !q.authors.is_empty() && !q.authors.iter().any(|a| a.eq_ignore_ascii_case(&c.author_email)) {
+        return false;
     }
     let day = c.date.get(..10).unwrap_or("");
     if non_empty(&q.since).is_some_and(|s| day < s) || non_empty(&q.until).is_some_and(|u| day > u) {

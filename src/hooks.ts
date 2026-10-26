@@ -3,7 +3,8 @@ import { api, Commit, CommitDiff, CommitList, CommitQuery, errorMessage, FileSta
 
 export interface Filters {
   target: string;
-  author: string;
+  /** Selected author emails; empty means any author. */
+  authors: string[];
   since: string;
   until: string;
   text: string;
@@ -14,7 +15,7 @@ export interface Filters {
 
 export const emptyFilters: Filters = {
   target: "",
-  author: "",
+  authors: [],
   since: "",
   until: "",
   text: "",
@@ -29,7 +30,8 @@ export function useCommits(repo: string | null, source: string | null, filters: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { target, author, since, until, text, ticket } = filters;
+  const { target, authors, since, until, text, ticket } = filters;
+  const authorsKey = authors.join(",");
   useEffect(() => {
     if (!repo || !source) {
       setList(null);
@@ -39,7 +41,7 @@ export function useCommits(repo: string | null, source: string | null, filters: 
     const query: CommitQuery = {
       source,
       target: target || undefined,
-      author: author || undefined,
+      authors,
       since: since || undefined,
       until: until || undefined,
       text: text || undefined,
@@ -62,7 +64,7 @@ export function useCommits(repo: string | null, source: string | null, filters: 
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [repo, source, target, author, since, until, text, ticket, ticketPattern, reloadKey]);
+  }, [repo, source, target, authorsKey, since, until, text, ticket, ticketPattern, reloadKey]);
 
   return { list, loading, error };
 }

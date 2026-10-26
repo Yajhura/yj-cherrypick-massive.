@@ -1,6 +1,6 @@
 mod common;
 
-use cherrypick_masive_lib::commits::{list_commits, CommitQuery};
+use cherrypick_masive_lib::commits::{list_authors, list_commits, Author, CommitQuery};
 use cherrypick_masive_lib::git::Git;
 use cherrypick_masive_lib::history::{commit_diff, commit_stat};
 use cherrypick_masive_lib::repo::{list_branches, resolve_root};
@@ -171,4 +171,27 @@ fn lists_main_develop_and_releases_first() {
         remote,
         ["origin/main", "origin/develop", "origin/release/2.10", "origin/release/2.3", "origin/alpha", "origin/feature/cem-1", "origin/hotfix/x", "origin/zeta"]
     );
+}
+
+#[test]
+fn lists_branch_authors_by_commit_count() {
+    let f = develop_fixture();
+    let authors = list_authors(&Git::new(&f.repo), "develop").unwrap();
+    assert_eq!(
+        authors,
+        [
+            Author { name: "Ana".into(), email: "ana@example.com".into(), commits: 2 },
+            Author { name: "Tester".into(), email: "tester@example.com".into(), commits: 2 },
+            Author { name: "Bruno".into(), email: "bruno@example.com".into(), commits: 1 },
+        ]
+    );
+    assert!(list_authors(&Git::new(&f.repo), " ").is_err());
+}
+
+#[test]
+fn filters_by_several_authors_by_email() {
+    let f = develop_fixture();
+    let q = CommitQuery { authors: vec!["BRUNO@example.com".into(), "ana@example.com".into()], ..query("develop") };
+    let subjects: Vec<String> = list_commits(&Git::new(&f.repo), &q).unwrap().commits.into_iter().map(|c| c.subject).collect();
+    assert_eq!(subjects, ["OPS-7 add c", "JIRA-2 add b", "JIRA-1 add a"]);
 }

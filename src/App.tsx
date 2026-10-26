@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ask, open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { CircleCheck, TriangleAlert } from "lucide-react";
-import { api, Branch, Commit, errorMessage, ExportFormat, isSessionFinished, OpenedRepo, Session, Settings } from "./api";
+import { api, Author, Branch, Commit, errorMessage, ExportFormat, isSessionFinished, OpenedRepo, Session, Settings } from "./api";
 import { emptyFilters, Filters, useCommitDetail, useCommits } from "./hooks";
 import { Toolbar } from "./components/Toolbar";
 import { Sidebar } from "./components/Sidebar";
@@ -114,6 +114,20 @@ export default function App() {
       })
       .catch((e) => setSessionLoadError(errorMessage(e)));
   }, [openRepo]);
+
+  // Authors of the current branch feed the author filter; a failure only empties it.
+  const [authors, setAuthors] = useState<Author[]>([]);
+  useEffect(() => {
+    if (!repo || !source) return setAuthors([]);
+    let cancelled = false;
+    api
+      .listAuthors(repo.root, source)
+      .then((list) => !cancelled && setAuthors(list))
+      .catch(() => !cancelled && setAuthors([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [repo, source, reloadKey]);
 
   const { list, loading, error: listError } = useCommits(repo?.root ?? null, source, filters, settings.ticketPattern, reloadKey);
 
@@ -364,6 +378,7 @@ export default function App() {
             ref={searchRef}
             filters={filters}
             branches={repo.branches}
+            authors={authors}
             source={source}
             shown={visible.length}
             selected={selected.size}

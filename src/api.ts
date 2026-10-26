@@ -32,10 +32,18 @@ export interface Commit {
   alreadyInTarget: boolean;
 }
 
+export interface Author {
+  name: string;
+  email: string;
+  commits: number;
+}
+
 export interface CommitQuery {
   source: string;
   target?: string;
   author?: string;
+  /** Author emails; empty means any author. */
+  authors?: string[];
   since?: string;
   until?: string;
   text?: string;
@@ -106,6 +114,7 @@ export const api = {
   openRepo: (path: string) => invoke<OpenedRepo>("open_repo", { path }),
   fetchRepo: (repo: string) => invoke<Branch[]>("fetch_repo", { repo }),
   listCommits: (repo: string, query: CommitQuery) => invoke<CommitList>("list_commits", { repo, query }),
+  listAuthors: (repo: string, source: string) => invoke<Author[]>("list_authors", { repo, source }),
   commitStat: (repo: string, hash: string) => invoke<FileStat[]>("commit_stat", { repo, hash }),
   commitDiff: (repo: string, hash: string) => invoke<CommitDiff>("commit_diff", { repo, hash }),
   renderBranchName: (template: string, target: string, tickets: string[]) =>

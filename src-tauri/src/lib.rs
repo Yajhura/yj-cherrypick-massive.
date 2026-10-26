@@ -16,7 +16,7 @@ use serde::Serialize;
 use tauri::{Manager, State};
 
 use cherry_pick::{Session, SessionStore, StartRequest};
-use commits::{Commit, CommitList, CommitQuery};
+use commits::{Author, Commit, CommitList, CommitQuery};
 use error::{AppError, AppResult};
 use export::ExportFormat;
 use git::Git;
@@ -104,6 +104,11 @@ async fn list_commits(repo: String, query: CommitQuery) -> AppResult<CommitList>
 }
 
 #[tauri::command]
+async fn list_authors(repo: String, source: String) -> AppResult<Vec<Author>> {
+    blocking(move || commits::list_authors(&Git::new(&repo), &source)).await
+}
+
+#[tauri::command]
 async fn commit_stat(repo: String, hash: String) -> AppResult<Vec<FileStat>> {
     blocking(move || history::commit_stat(&Git::new(&repo), &hash)).await
 }
@@ -186,6 +191,7 @@ pub fn run() {
             open_repo,
             fetch_repo,
             list_commits,
+            list_authors,
             commit_stat,
             commit_diff,
             render_branch_name,

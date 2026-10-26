@@ -1,10 +1,12 @@
 import { forwardRef } from "react";
-import { Branch } from "../api";
+import { Author, Branch } from "../api";
+import { AuthorPicker } from "./AuthorPicker";
 import { Filters } from "../hooks";
 
 interface Props {
   filters: Filters;
   branches: Branch[];
+  authors: Author[];
   source: string | null;
   shown: number;
   selected: number;
@@ -13,7 +15,7 @@ interface Props {
 }
 
 export const FilterBar = forwardRef<HTMLInputElement, Props>(function FilterBar(
-  { filters, branches, source, shown, selected, loading, onChange },
+  { filters, branches, authors, source, shown, selected, loading, onChange },
   searchRef,
 ) {
   const targets = [...branches.filter((b) => b.isRemote), ...branches.filter((b) => !b.isRemote)].filter((b) => b.name !== source);
@@ -29,10 +31,10 @@ export const FilterBar = forwardRef<HTMLInputElement, Props>(function FilterBar(
         <span>Ticket</span>
         <input className="input" placeholder="PAY-123" value={filters.ticket} onChange={(e) => onChange({ ticket: e.target.value })} />
       </label>
-      <label className="field">
-        <span>Author</span>
-        <input className="input" placeholder="Name" title="Name or email" value={filters.author} onChange={(e) => onChange({ author: e.target.value })} />
-      </label>
+      <div className="field">
+        <span id="author-label">Author</span>
+        <AuthorPicker authors={authors} selected={filters.authors} onChange={(emails) => onChange({ authors: emails })} />
+      </div>
       <label className="field">
         <span>From</span>
         <input className="input" type="date" value={filters.since} max={filters.until || undefined} onChange={(e) => onChange({ since: e.target.value })} />

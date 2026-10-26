@@ -314,3 +314,16 @@ aside.detail[hidden] { display: none; }
 @media (max-width: 1279px) {
   .workspace.no-detail { grid-template-columns: 200px minmax(380px, 1fr); }
 }
+
+/* Author multi-select */
+.author-picker .picker-button { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; cursor: pointer; text-align: left; }
+.author-picker .picker-button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu.picker { left: 0; right: auto; width: 320px; display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+.picker-list { max-height: 280px; overflow: auto; }
+.picker-item { display: grid; grid-template-columns: 15px 1fr auto; align-items: center; gap: 8px; padding: 6px; border-radius: 4px; cursor: pointer; }
+.picker-item:hover { background: var(--neutral-soft); }
+.picker-item .who { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.picker-item .who span, .picker-item .who small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-item .who small { font-size: 11px; }
+.picker-foot { display: flex; align-items: center; justify-content: space-between; font-size: 12px; border-top: 1px solid var(--line-soft); padding-top: 6px; }
+.menu.picker .empty { margin: 6px; font-size: 12px; color: var(--ink-muted); }
