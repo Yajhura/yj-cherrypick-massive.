@@ -40,6 +40,8 @@ Unlike general git GUIs, it treats a batch of cherry-picks as one resumable sess
 
 No corporate brand. Neutral product name "Cherrypick Masive". No logo assets.
 
+Standing visual preference (user chose it over the dealt directions, 2026-10-25): the category standard, a three-pane git client executed at full craft. Quality bar: GitHub Desktop and Fork.
+
 ## Evidence on Hand
 
 None. No screenshots, testimonials, or usage data exist; do not fabricate any.

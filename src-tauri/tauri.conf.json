@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "cherrypick-masive",
-        "width": 800,
-        "height": 600
+        "title": "Cherrypick Masive",
+        "width": 1440,
+        "height": 900, "minWidth": 1100, "minHeight": 640
       }
     ],
     "security": {

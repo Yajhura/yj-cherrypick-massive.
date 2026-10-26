@@ -23,9 +23,9 @@ Branch: `feat/cherry-pick-app` · Delivery: ask-on-risk · Test runner: `cargo t
 
 - [x] T1 S1,S2 — git CLI runner, repo open/recents, fetch, branch list · route: inline · cb852a9, fix e7ffc87
 - [x] T2 S3,S4,S5,S11 — commit log parsing + filters + duplicate/merge detection, stat & diff · route: inline · cb852a9
-- [ ] T3 S6-S10 — cherry-pick engine: worktree, session state machine, persistence, push · route: inline · f559675 · Risk: item 1 → independent verifier running
+- [x] T3 S6-S10 — cherry-pick engine: worktree, session state machine, persistence, push · route: inline · f559675, fix 02f29e2 · Risk: item 1 → independent verifier + native review (approved)
 - [x] T4 S12 — export CSV/MD/XLSX · route: inline · cb852a9
-- [ ] T5 S2,S3,S7,S9-S12 — React UI (repo picker, filters, commit table, run panel, history, export) · route: inline
+- [~] T5 S2,S3,S7,S9-S12 — React UI (repo picker, filters, commit table, run panel, history, export) · route: inline · UI built, type-checks; not yet run in the app, finish review + DESIGN.md pending
 - [ ] T6 S13 — updater/installer config · route: inline · blocked on user input (GitHub repo, signing key)
 
 ## Log
@@ -35,3 +35,6 @@ Branch: `feat/cherry-pick-app` · Delivery: ask-on-risk · Test runner: `cargo t
 - L3 (2026-10-25) User: "arranca". Scaffolded with create-tauri-app 4.8.0 (react-ts, npm, Tauri 2).
 - L4 Backend core cb852a9: 13 integration tests (real git repos in temp dirs). Native review (risk+reliability) found R1 critical: `open_in_editor` used `cmd /C <editor> <path>` → command injection with `&` in paths without spaces. Fixed in e7ffc87 (resolve editor in PATH, spawn directly); RED reproduced against `cmd /C`, GREEN after. Re-review approved and acknowledged (boundary e7ffc87).
 - L5 Engine f559675: 9 tests (order, -x, empty, conflict/continue/skip/abort, persistence, push failure/retry, merge/branch/concurrency guards). Mutation check: removing chronological sort fails the order test.
+- L6 Independent verifier: blockers B1 (`--topo-order` not chronological across merged history) and B2 (pick finished in the IDE → Continue fails, Skip mislabels). Fixed in 02f29e2 with `--author-date-order` and a persisted `pick_base`; also A1 short hashes, A2 corrupt session dismissable, A3 resume Running session, A6 remote branch clash checked at start. 8 RED tests → GREEN; verifier recheck confirmed B1/B2 fixed. Open advisories: A4 binary conflicts accepted without markers, A5 marker check false positives, A7 prefer `origin/x` targets in UI.
+- L7 Native review of engine range (risk, resilience, reliability) approved and acknowledged. PRODUCT.md written (impeccable init). UI answers: used several times per week; "Historial primero"; avoid unclear state, generic dashboard look, poor long-session legibility.
+- L8 User chose the category standard (canon), quality bar GitHub Desktop + Fork. Surface brief at .impeccable/surfaces/src-app-tsx.md. UI written (toolbar, branch sidebar, filters, keyboard listbox, detail+diff, session panel, dialogs); `npm run build` passes. Pending: run `npm run tauri dev` smoke test, screenshots, impeccable finish review, DESIGN.md, T6 updater.
