@@ -144,7 +144,10 @@ export const CommitList = forwardRef<HTMLDivElement, Props>(function CommitList(
               {status ? <StatusChip kind={status} /> : c.authorName}
             </span>
             <span className="mono muted">{c.shortHash}</span>
-            <span className="date mono">{formatDate(c.date)}</span>
+            <span className="date mono" title={formatDate(c.date)}>
+              {formatDate(c.date).slice(0, 10)}
+              <span className="time">{formatDate(c.date).slice(10)}</span>
+            </span>
           </div>
         );
       })}

@@ -302,6 +302,7 @@ kbd { font: 11px var(--mono); padding: 0 4px; border: 1px solid var(--line); bor
   .filters .wide { grid-column: span 2; }
   .list-head, .row { grid-template-columns: 30px minmax(0, 1fr) 76px 124px; }
   .list-head > :nth-child(3), .row > .author { display: none; }
-  .list.in-session .list-head, .list.in-session .row { grid-template-columns: 30px minmax(0, 1fr) 112px 76px 124px; }
+  .list.in-session .list-head, .list.in-session .row { grid-template-columns: 30px minmax(0, 1fr) 112px 70px 84px; }
+  .list.in-session .row .time { display: none; }
   .list.in-session .list-head > :nth-child(3), .list.in-session .row > .author { display: block; }
 }
