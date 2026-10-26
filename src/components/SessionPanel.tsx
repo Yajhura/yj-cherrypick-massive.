@@ -1,4 +1,4 @@
-import { Check, CircleCheck, CircleDashed, CircleMinus, Code, Copy, LoaderCircle, OctagonAlert, SkipForward, TriangleAlert, Upload, X } from "lucide-react";
+import { ArrowRight, Check, CircleCheck, CircleDashed, CircleMinus, Code, Copy, LoaderCircle, OctagonAlert, SkipForward, TriangleAlert, Upload, X } from "lucide-react";
 import { PickItem, Session } from "../api";
 
 interface Props {
@@ -53,7 +53,9 @@ export function SessionPanel({ session, busy, error, ...actions }: Props) {
     <section className="session" aria-label="Cherry-pick session">
       <div className="session-head">
         <h1>Cherry-pick into {session.target}</h1>
-        <div className="route mono">→ {session.branch}</div>
+        <div className="route mono">
+          <ArrowRight size={12} aria-hidden="true" /> {session.branch}
+        </div>
         <div className="progress" aria-live="polite">
           {state.kind !== "completed" && (
             <span>

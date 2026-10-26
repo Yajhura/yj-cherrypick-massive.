@@ -19,7 +19,7 @@ export function Sidebar({ branches, current, onSelect }: Props) {
   const group = (title: string, items: Branch[], Icon: typeof Cloud) => (
     <>
       <h2>{title}</h2>
-      {items.length === 0 && <p className="muted" style={{ margin: "2px 8px", fontSize: 12 }}>None</p>}
+      {items.length === 0 && <p className="empty">None</p>}
       {items.map((b) => (
         <button key={b.name} className="branch" aria-current={b.name === current} onClick={() => onSelect(b.name)} title={b.name}>
           <Icon size={14} />

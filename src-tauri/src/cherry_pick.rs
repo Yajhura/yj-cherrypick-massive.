@@ -320,11 +320,13 @@ fn finish(store: &SessionStore, session: &mut Session) -> AppResult<()> {
 }
 
 fn push(store: &SessionStore, session: &mut Session) -> AppResult<()> {
-    let wt = session.worktree_git();
-    let push_error = match preferred_remote(&wt)? {
+    // Push from the main repository: it shares refs with the worktree, and relative
+    // remote URLs resolve against it, not against the worktree directory.
+    let repo = Git::new(&session.repo);
+    let push_error = match preferred_remote(&repo)? {
         None => Some("no remote configured".to_string()),
         Some(remote) => {
-            let out = wt.output(&["push", "-u", &remote, &session.branch])?;
+            let out = repo.output(&["push", "-u", &remote, &session.branch])?;
             (!out.success).then(|| out.stderr.trim().to_string())
         }
     };

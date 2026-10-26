@@ -372,3 +372,15 @@ fn rejects_branch_that_already_exists_on_the_remote() {
 
     assert!(err.to_string().contains("already exists on the remote"), "{err}");
 }
+
+#[test]
+fn pushes_when_the_remote_url_is_relative_to_the_repo() {
+    let Setup { f, c1, .. } = setup();
+    // A relative URL resolves against the main repository, not the worktree.
+    f.git(&["remote", "set-url", "origin", "../remote.git"]);
+
+    let s = start(&store(&f), &f.worktrees(), request(&f, &[&c1])).unwrap();
+
+    assert_pushed(&s);
+    assert_eq!(f.remote_log("cherry-pick/release/test")[0], "JIRA-1 add a");
+}

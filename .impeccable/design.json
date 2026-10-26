@@ -1,0 +1,591 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-26T03:26:55.821Z",
+  "title": "Design System: Cherrypick Masive",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Ground",
+        "canonical": "#f6f7f9",
+        "cssVar": "--bg",
+        "dark": "#0d1117",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242425",
+          "#3f4041",
+          "#5d5e5f",
+          "#7f8082",
+          "#a4a4a6",
+          "#cacacb",
+          "#eeeeef"
+        ]
+      },
+      "pane": {
+        "role": "neutral",
+        "displayName": "Pane",
+        "canonical": "#ffffff",
+        "cssVar": "--pane",
+        "dark": "#151b23",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#808080",
+          "#a4a4a4",
+          "#cacaca",
+          "#eeeeee"
+        ]
+      },
+      "pane-sunken": {
+        "role": "neutral",
+        "displayName": "Pane Sunken",
+        "canonical": "#f6f8fa",
+        "cssVar": "--pane-sunken",
+        "dark": "#0f141a",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#232425",
+          "#3e4041",
+          "#5c5e5f",
+          "#7f8082",
+          "#a3a5a6",
+          "#c9cacc",
+          "#eeeeef"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#d0d7de",
+        "cssVar": "--line",
+        "dark": "#30363d",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#222427",
+          "#3b4045",
+          "#585e64",
+          "#7b8187",
+          "#9fa5ac",
+          "#c7cbcf",
+          "#edeef0"
+        ]
+      },
+      "hairline-soft": {
+        "role": "neutral",
+        "displayName": "Hairline Soft",
+        "canonical": "#eaeef2",
+        "cssVar": "--line-soft",
+        "dark": "#212830",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#232426",
+          "#3d4043",
+          "#5b5e61",
+          "#7d8184",
+          "#a1a5a8",
+          "#c9cbcd",
+          "#eeeeef"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1f2328",
+        "cssVar": "--ink",
+        "dark": "#e6edf3",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#222427",
+          "#3c4045",
+          "#595e64",
+          "#7c8187",
+          "#a0a5ab",
+          "#c8cbce",
+          "#edeef0"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Ink Muted",
+        "canonical": "#59636e",
+        "cssVar": "--ink-muted",
+        "dark": "#9da7b3",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#20252a",
+          "#38414a",
+          "#555f6a",
+          "#77818d",
+          "#9ca6b1",
+          "#c5cbd2",
+          "#edeff1"
+        ]
+      },
+      "selection-blue": {
+        "role": "primary",
+        "displayName": "Selection Blue",
+        "canonical": "#0969da",
+        "cssVar": "--accent",
+        "dark": "#4493f8",
+        "tonalRamp": [
+          "#040b18",
+          "#01224f",
+          "#083d80",
+          "#0358bb",
+          "#267cef",
+          "#68a5fd",
+          "#adcdfb",
+          "#e5effe"
+        ]
+      },
+      "selection-blue-strong": {
+        "role": "primary",
+        "displayName": "Selection Blue Strong",
+        "canonical": "#0a5bc4",
+        "cssVar": "--accent-strong",
+        "dark": "#2f81f7",
+        "tonalRamp": [
+          "#040b18",
+          "#012151",
+          "#073c83",
+          "#0357c0",
+          "#337de8",
+          "#6ea5f8",
+          "#acccfd",
+          "#e6effe"
+        ]
+      },
+      "selection-blue-soft": {
+        "role": "primary",
+        "displayName": "Selection Blue Soft",
+        "canonical": "#ddf4ff",
+        "cssVar": "--accent-soft",
+        "dark": "#15284a",
+        "tonalRamp": [
+          "#090c0d",
+          "#1c262a",
+          "#32434a",
+          "#4d616a",
+          "#6f848e",
+          "#94a8b2",
+          "#c1cdd2",
+          "#ebeff1"
+        ]
+      },
+      "on-accent": {
+        "role": "primary",
+        "displayName": "On Accent",
+        "canonical": "#ffffff",
+        "cssVar": "--accent-ink",
+        "dark": "#0d1117",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#404040",
+          "#5d5d5d",
+          "#808080",
+          "#a4a4a4",
+          "#cacaca",
+          "#eeeeee"
+        ]
+      },
+      "applied-green": {
+        "role": "state",
+        "displayName": "Applied Green",
+        "canonical": "#1a7f37",
+        "cssVar": "--ok",
+        "dark": "#3fb950",
+        "tonalRamp": [
+          "#050e06",
+          "#002d0d",
+          "#074e1d",
+          "#197031",
+          "#38964d",
+          "#66bb75",
+          "#aad9af",
+          "#e5f3e6"
+        ]
+      },
+      "applied-green-soft": {
+        "role": "state",
+        "displayName": "Applied Green Soft",
+        "canonical": "#dafbe1",
+        "cssVar": "--ok-soft",
+        "dark": "#12301b",
+        "tonalRamp": [
+          "#090c09",
+          "#1b281e",
+          "#2e4734",
+          "#496650",
+          "#6b8972",
+          "#90ad97",
+          "#bfd0c2",
+          "#ebf0ec"
+        ]
+      },
+      "skipped-amber": {
+        "role": "state",
+        "displayName": "Skipped Amber",
+        "canonical": "#9a6700",
+        "cssVar": "--warn",
+        "dark": "#d29922",
+        "tonalRamp": [
+          "#100a03",
+          "#322003",
+          "#573902",
+          "#7c5510",
+          "#a8751c",
+          "#cc9a51",
+          "#e3c59e",
+          "#f6ede0"
+        ]
+      },
+      "skipped-amber-soft": {
+        "role": "state",
+        "displayName": "Skipped Amber Soft",
+        "canonical": "#fff8c5",
+        "cssVar": "--warn-soft",
+        "dark": "#33270b",
+        "tonalRamp": [
+          "#0c0b06",
+          "#282510",
+          "#474118",
+          "#665f31",
+          "#888253",
+          "#ada67a",
+          "#cfccb2",
+          "#f0efe7"
+        ]
+      },
+      "conflict-red": {
+        "role": "state",
+        "displayName": "Conflict Red",
+        "canonical": "#cf222e",
+        "cssVar": "--danger",
+        "dark": "#f85149",
+        "tonalRamp": [
+          "#170505",
+          "#490409",
+          "#7c0011",
+          "#ae1322",
+          "#e0373d",
+          "#fe726d",
+          "#fbb7b1",
+          "#fde9e7"
+        ]
+      },
+      "conflict-red-soft": {
+        "role": "state",
+        "displayName": "Conflict Red Soft",
+        "canonical": "#ffebe9",
+        "cssVar": "--danger-soft",
+        "dark": "#3b1418",
+        "tonalRamp": [
+          "#0d0b0a",
+          "#2a2221",
+          "#4a3c3b",
+          "#6a5957",
+          "#8d7b7a",
+          "#b1a09e",
+          "#d2c8c7",
+          "#f1eded"
+        ]
+      },
+      "neutral-soft": {
+        "role": "neutral",
+        "displayName": "Neutral Soft",
+        "canonical": "#eaeef2",
+        "cssVar": "--neutral-soft",
+        "dark": "#212830",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#232426",
+          "#3d4043",
+          "#5b5e61",
+          "#7d8184",
+          "#a1a5a8",
+          "#c9cbcd",
+          "#eeeeef"
+        ]
+      },
+      "diff-add-bg": {
+        "role": "state",
+        "displayName": "Diff Add Background",
+        "canonical": "#e6ffec",
+        "cssVar": "--add-bg",
+        "dark": "#11301b",
+        "tonalRamp": [
+          "#090c0a",
+          "#1d2720",
+          "#334538",
+          "#4e6454",
+          "#708776",
+          "#95ab9b",
+          "#c2cec5",
+          "#ecf0ec"
+        ]
+      },
+      "diff-del-bg": {
+        "role": "state",
+        "displayName": "Diff Delete Background",
+        "canonical": "#ffebe9",
+        "cssVar": "--del-bg",
+        "dark": "#3b1418",
+        "tonalRamp": [
+          "#0d0b0a",
+          "#2a2221",
+          "#4a3c3b",
+          "#6a5957",
+          "#8d7b7a",
+          "#b1a09e",
+          "#d2c8c7",
+          "#f1eded"
+        ]
+      },
+      "diff-hunk": {
+        "role": "primary",
+        "displayName": "Diff Hunk",
+        "canonical": "#0550ae",
+        "cssVar": "--hunk",
+        "dark": "#79c0ff",
+        "tonalRamp": [
+          "#050b17",
+          "#04224d",
+          "#043c84",
+          "#1359b8",
+          "#3b7ee0",
+          "#6ca5fa",
+          "#abcdfe",
+          "#e6effe"
+        ]
+      }
+    },
+    "themes": {
+      "light": "default :root values (frontmatter)",
+      "dark": "@media (prefers-color-scheme: dark) on :root:not([data-theme=\"light\"]); each colorMeta entry carries its `dark` value"
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Start screen title only (22px/600)."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Commit subject in detail, session heading, dialog titles (16px/600). Empty-state headings 15px, toolbar repo name 14px bold."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Base size for rows, buttons, inputs, menus, toasts (13px/1.45)."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Column headers, sidebar section headings, status chips (12px/600, sentence case, no tracking)."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Field labels (500), commit meta, hints, notices, session progress (12px)."
+      },
+      "badge": {
+        "displayName": "Badge",
+        "purpose": "Ticket, merge and in-target badges (11px on an 18px line)."
+      },
+      "mono": {
+        "displayName": "Mono (Cascadia Mono)",
+        "purpose": "Hashes, dates, counts, paths, branch route, conflicted files, diff. Cascadia Mono ships with Windows 11 and Windows Terminal and holds up better at 12px than Consolas, which is the fallback. Tabular figures."
+      }
+    },
+    "shadows": [
+      {
+        "name": "float",
+        "value": "0 8px 24px rgba(31, 35, 40, 0.16)",
+        "dark": "0 8px 24px rgba(0, 0, 0, 0.5)",
+        "purpose": "Dialogs, export menu and toast only; docked panes never cast shadows."
+      },
+      {
+        "name": "row-active-ring",
+        "value": "inset 0 0 0 1px var(--line)",
+        "purpose": "Keyboard-active history row while the list is not focused."
+      },
+      {
+        "name": "row-active-focus-ring",
+        "value": "inset 0 0 0 2px var(--focus)",
+        "purpose": "Keyboard-active history row while the list has keyboard focus."
+      },
+      {
+        "name": "session-current-ring",
+        "value": "inset 0 0 0 1px var(--accent)",
+        "purpose": "Commit currently being applied in the session list, over blue-soft."
+      },
+      {
+        "name": "dialog-backdrop",
+        "value": "rgba(13, 17, 23, 0.45)",
+        "purpose": "Backdrop behind modal dialogs."
+      }
+    ],
+    "focus": {
+      "value": "outline: 2px solid var(--focus); outline-offset: 1px",
+      "input": "outline: 2px solid var(--focus); outline-offset: -1px; border-color: transparent"
+    },
+    "motion": [
+      {
+        "name": "toast-in",
+        "value": "180ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Toast rises 8px and fades in."
+      },
+      {
+        "name": "spin",
+        "value": "0.9s linear infinite",
+        "purpose": "Loader icon while fetching or applying."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce disables toast-in and spin",
+        "purpose": "Accessibility."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "min-window",
+        "value": "1100px"
+      },
+      {
+        "name": "narrow",
+        "value": "max-width: 1279px",
+        "purpose": "Workspace 200px | minmax(380px,1fr) | minmax(320px,30%); author column hidden; during a session the author column returns (112px) to carry the pick status and the date shows only the day."
+      }
+    ],
+    "layout": {
+      "shell": "grid rows 48px toolbar | 1fr workspace",
+      "workspace": "240px | minmax(420px, 1fr) | minmax(360px, 34%)",
+      "historyColumns": "34px checkbox | subject 1fr | author 140px | hash 76px | date 124px",
+      "rowHeight": "34px",
+      "controlHeight": "30px"
+    }
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Default toolbar and dialog button; 30px, hairline stroke, lucide icon + label.",
+      "html": "<button class=\"ds-btn\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\"/><path d=\"M21 3v5h-5\"/><path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\"/><path d=\"M8 16H3v5\"/></svg>Fetch</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--line, #d0d7de); border-radius: 6px; background: var(--pane, #fff); color: var(--ink, #1f2328); font: 13px/1.45 \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif; cursor: pointer; white-space: nowrap; } .ds-btn:hover { background: var(--pane-sunken, #f6f8fa); } .ds-btn:focus-visible { outline: 2px solid var(--focus, #0969da); outline-offset: 1px; } .ds-btn:disabled { opacity: 0.55; cursor: not-allowed; }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one primary action per view: \"Cherry-pick N commits…\", Start cherry-pick, Continue.",
+      "html": "<button class=\"ds-btn-primary\">Cherry-pick 3 commits…</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--accent, #0969da); border-radius: 6px; background: var(--accent, #0969da); color: var(--accent-ink, #fff); font: 600 13px/1.45 \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif; cursor: pointer; } .ds-btn-primary:hover { background: var(--accent-strong, #0a5bc4); } .ds-btn-primary:focus-visible { outline: 2px solid var(--focus, #0969da); outline-offset: 1px; } .ds-btn-primary:disabled { background: var(--neutral-soft, #eaeef2); border-color: var(--line, #d0d7de); color: var(--ink-muted, #59636e); font-weight: 500; cursor: not-allowed; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive actions such as Abort.",
+      "html": "<button class=\"ds-btn-danger\">Abort</button>",
+      "css": ".ds-btn-danger { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--line, #d0d7de); border-radius: 6px; background: var(--pane, #fff); color: var(--danger, #cf222e); font: 13px/1.45 \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif; cursor: pointer; } .ds-btn-danger:hover { background: var(--danger-soft, #ffebe9); } .ds-btn-danger:focus-visible { outline: 2px solid var(--focus, #0969da); outline-offset: 1px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Filter and dialog fields with a 12px muted label above.",
+      "html": "<label class=\"ds-field\"><span>Ticket</span><input class=\"ds-input\" placeholder=\"ABC-123\"></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 4px; font-family: \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif; } .ds-field > span { font-size: 12px; font-weight: 500; color: var(--ink-muted, #59636e); } .ds-input { height: 30px; padding: 0 8px; border: 1px solid var(--line, #d0d7de); border-radius: 6px; background: var(--pane, #fff); color: var(--ink, #1f2328); font: 13px/1.45 inherit; } .ds-input::placeholder { color: var(--ink-muted, #59636e); } .ds-input:focus { outline: 2px solid var(--focus, #0969da); outline-offset: -1px; border-color: transparent; }"
+    },
+    {
+      "name": "Branch Sidebar",
+      "kind": "nav",
+      "refersTo": "branch-item",
+      "description": "Local and remote branches; the current one is blue on blue-soft.",
+      "html": "<nav class=\"ds-sidebar\"><h2>Local</h2><button class=\"ds-branch\" aria-current=\"true\">main</button><button class=\"ds-branch\">release/2.4</button><h2>Remote</h2><button class=\"ds-branch\">origin/develop</button></nav>",
+      "css": ".ds-sidebar { width: 240px; padding: 10px 8px; background: var(--pane, #fff); border-right: 1px solid var(--line, #d0d7de); font: 13px/1.45 \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif; } .ds-sidebar h2 { font-size: 12px; font-weight: 600; color: var(--ink-muted, #59636e); margin: 12px 8px 4px; } .ds-branch { display: flex; width: 100%; padding: 5px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--ink, #1f2328); font: inherit; text-align: left; cursor: pointer; } .ds-branch:hover { background: var(--neutral-soft, #eaeef2); } .ds-branch:focus-visible { outline: 2px solid var(--focus, #0969da); outline-offset: 1px; } .ds-branch[aria-current=\"true\"] { background: var(--accent-soft, #ddf4ff); color: var(--accent, #0969da); font-weight: 600; }"
+    },
+    {
+      "name": "Status Chips",
+      "kind": "chip",
+      "refersTo": "status-applied",
+      "description": "Pick status: tint + icon + word, always all three.",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-status applied\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m9 12 2 2 4-4\"/></svg>Applied</span><span class=\"ds-status empty\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M8 12h8\"/></svg>Already there</span><span class=\"ds-status skipped\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><polygon points=\"5 4 15 12 5 20 5 4\"/><line x1=\"19\" x2=\"19\" y1=\"5\" y2=\"19\"/></svg>Skipped</span><span class=\"ds-status conflict\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><polygon points=\"7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2\"/><line x1=\"12\" x2=\"12\" y1=\"8\" y2=\"12\"/><line x1=\"12\" x2=\"12.01\" y1=\"16\" y2=\"16\"/></svg>Conflict</span><span class=\"ds-status pending\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-dasharray=\"3 3\"><circle cx=\"12\" cy=\"12\" r=\"10\"/></svg>Pending</span><span class=\"ds-status working\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M21 12a9 9 0 1 1-6.22-8.56\"/></svg>Applying</span></div>",
+      "css": ".ds-chips { display: flex; flex-wrap: wrap; gap: 8px; font-family: \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif; } .ds-status { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 11px; font-size: 12px; font-weight: 600; white-space: nowrap; } .ds-status.applied { color: var(--ok, #1a7f37); background: var(--ok-soft, #dafbe1); } .ds-status.empty { color: var(--ink-muted, #59636e); background: var(--neutral-soft, #eaeef2); } .ds-status.skipped { color: var(--warn, #9a6700); background: var(--warn-soft, #fff8c5); } .ds-status.conflict { color: var(--danger, #cf222e); background: var(--danger-soft, #ffebe9); } .ds-status.pending { color: var(--ink-muted, #59636e); border: 1px dashed var(--line, #d0d7de); } .ds-status.working { color: var(--accent, #0969da); background: var(--accent-soft, #ddf4ff); }"
+    },
+    {
+      "name": "History Row",
+      "kind": "custom",
+      "refersTo": "commit-row",
+      "description": "34px grid row: checkbox, subject with ticket badge, author, mono hash, mono date.",
+      "html": "<div class=\"ds-list\"><div class=\"ds-row ds-head\"><span></span><span>Subject</span><span>Author</span><span>Hash</span><span>Date</span></div><div class=\"ds-row\" tabindex=\"0\" aria-selected=\"true\"><input type=\"checkbox\" checked><span class=\"ds-subject\"><span class=\"ds-badge\">PAY-412</span><span class=\"ds-text\">Fix rounding in invoice totals</span></span><span class=\"ds-muted\">Ana Ruiz</span><span class=\"ds-mono ds-muted\">3f9c2a1b</span><span class=\"ds-mono ds-muted\">2026-10-21 14:05</span></div><div class=\"ds-row\" tabindex=\"0\"><input type=\"checkbox\"><span class=\"ds-subject\"><span class=\"ds-text\">Update dependency lockfile</span></span><span class=\"ds-muted\">Leo Park</span><span class=\"ds-mono ds-muted\">a07de413</span><span class=\"ds-mono ds-muted\">2026-10-20 09:12</span></div></div>",
+      "css": ".ds-list { background: var(--pane, #fff); font: 13px/1.45 \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif; color: var(--ink, #1f2328); } .ds-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) 140px 76px 124px; align-items: center; gap: 8px; padding: 0 12px; height: 34px; border-bottom: 1px solid var(--line-soft, #eaeef2); } .ds-head { height: 30px; background: var(--pane-sunken, #f6f8fa); border-bottom-color: var(--line, #d0d7de); font-size: 12px; font-weight: 600; color: var(--ink-muted, #59636e); } .ds-row:not(.ds-head):hover { background: var(--pane-sunken, #f6f8fa); } .ds-row[aria-selected=\"true\"] { background: var(--select-row, #ddf4ff); } .ds-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--focus, #0969da); } .ds-subject { display: flex; align-items: center; gap: 6px; min-width: 0; } .ds-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-badge { flex: none; font-size: 11px; line-height: 18px; padding: 0 6px; border-radius: 9px; font-weight: 600; color: var(--accent, #0969da); background: var(--accent-soft, #ddf4ff); } .ds-muted { color: var(--ink-muted, #59636e); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-mono { font-family: \"Cascadia Mono\", Consolas, ui-monospace, monospace; font-variant-numeric: tabular-nums; } .ds-row input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent, #0969da); }"
+    },
+    {
+      "name": "Notice",
+      "kind": "custom",
+      "refersTo": "status-skipped",
+      "description": "Full-width warning or error band with a state-tinted icon and ink text.",
+      "html": "<div class=\"ds-notice warn\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/></svg><span>This diff is larger than 2 MB and is cut off.</span></div>",
+      "css": ".ds-notice { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; font: 12px/1.45 \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, sans-serif; color: var(--ink, #1f2328); border-bottom: 1px solid var(--line, #d0d7de); } .ds-notice svg { flex: none; margin-top: 1px; } .ds-notice.warn { background: var(--warn-soft, #fff8c5); } .ds-notice.warn svg { color: var(--warn, #9a6700); } .ds-notice.error { background: var(--danger-soft, #ffebe9); } .ds-notice.error svg { color: var(--danger, #cf222e); }"
+    },
+    {
+      "name": "Diff",
+      "kind": "custom",
+      "refersTo": "commit-row",
+      "description": "Mono 12px/1.5 diff with add/delete line tints and blue hunk headers.",
+      "html": "<pre class=\"ds-diff\"><div class=\"f\">src/invoice.ts</div><div class=\"h\">@@ -12,7 +12,7 @@</div><div>  const subtotal = sum(lines);</div><div class=\"d\">- return Math.round(subtotal);</div><div class=\"a\">+ return roundHalfEven(subtotal, 2);</div></pre>",
+      "css": ".ds-diff { margin: 0; padding: 8px 0; font: 12px/1.5 \"Cascadia Mono\", Consolas, ui-monospace, monospace; tab-size: 4; background: var(--pane, #fff); color: var(--ink, #1f2328); } .ds-diff div { padding: 0 16px; white-space: pre; } .ds-diff .a { background: var(--add-bg, #e6ffec); } .ds-diff .d { background: var(--del-bg, #ffebe9); } .ds-diff .h { background: var(--hunk-bg, #ddf4ff); color: var(--hunk, #0550ae); } .ds-diff .f { font-weight: 700; padding-top: 10px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Workbench Git Client",
+    "overview": "Cherrypick Masive is the category standard on purpose: a three-pane git client (branches, history, detail) built for Windows developers who backport commit sets several times a week. The user chose the canon over invented directions, and the quality bar is GitHub Desktop and Fork. That means the system wins on craft, not novelty: honest hairlines, a disciplined 30px control height, tabular monospace columns that line up, and a single blue that means \"selected\" or \"the next thing to do\".\n\nThe history list is the work surface. Everything else serves reading it: the sidebar picks the branch, the filter bar narrows it, the right pane explains the focused commit and is replaced by the session panel while a cherry-pick runs. Density is high (13px body, 34px rows) and long-session legibility comes from neutral ground, low-chroma panes and strong ink rather than from whitespace.\n\nState is the one place colour is allowed to speak, and it never speaks alone. The build refuses dashboard cards, metric tiles and decoration; a light and a dark scheme carry the same roles through the same custom properties.",
+    "keyCharacteristics": [
+      "Three fixed panes on a neutral ground, separated by 1px hairlines, no floating cards.",
+      "One blue for selection, focus and the primary action; nothing else is blue except tickets and diff hunk headers.",
+      "Status colour is always icon + word + tint, never a bare dot or swatch.",
+      "Cascadia Mono for every hash, date, count, path and diff line, with tabular figures.",
+      "Light and dark schemes mirror each other role for role (`prefers-color-scheme`, overridable with `data-theme=\"light\"`)."
+    ],
+    "rules": [
+      {
+        "name": "The Word-With-Every-Colour Rule",
+        "body": "A status colour always arrives with an icon and a word: Applied (circle-check), Already there (circle-minus), Skipped (skip-forward), Conflict (octagon-alert), Pending (dashed circle, dashed outline, no fill), Applying (spinning loader). Colour without the word is a defect.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Blue Rule",
+        "body": "Blue means selection, focus or the primary action. Do not use it for decoration, headings or secondary buttons.",
+        "section": "colors"
+      },
+      {
+        "name": "The Data-Is-Mono Rule",
+        "body": "If a value is compared down a column or copied into a terminal (hash, date, count, path, branch), it is set in the mono face with tabular figures.",
+        "section": "typography"
+      },
+      {
+        "name": "The Panes-Don't-Float Rule",
+        "body": "Nothing docked in the shell casts a shadow. Only overlays do.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep every control at 30px and every history row at 34px.",
+      "Do pair every status tint with its lucide icon and its word: Applied, Already there, Skipped, Conflict, Pending, Applying.",
+      "Do set hashes, dates, counts, paths and diffs in Cascadia Mono with tabular figures, falling back to Consolas.",
+      "Do separate panes with 1px hairlines (#d0d7de light, #30363d dark) and tonal steps, not shadows.",
+      "Do define every new colour as a custom property with both a light and a dark value.",
+      "Do keep a visible 2px blue focus indicator on every focusable element.",
+      "Do measure new screens against GitHub Desktop and Fork."
+    ],
+    "donts": [
+      "Don't use dashboard cards, metric tiles or decorative illustration.",
+      "Don't use blue for anything but selection, focus, the primary action, tickets and hunk headers.",
+      "Don't show a state with colour alone, or an icon alone.",
+      "Don't add shadows to docked panes, rows or buttons.",
+      "Don't add uppercase tracked labels or kickers above headings; headings are sentence case at 12px/600 or larger.",
+      "Don't use typed glyphs or emoji as icons; icons are lucide SVGs."
+    ]
+  }
+}

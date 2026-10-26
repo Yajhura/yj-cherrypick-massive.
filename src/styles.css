@@ -150,13 +150,13 @@ input[type="checkbox"]:disabled { border-color: var(--line); background-color: v
 .branch:hover { background: var(--neutral-soft); }
 .branch[aria-current="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .sidebar .filter-branches { margin: 0 4px 6px; width: calc(100% - 8px); }
+.sidebar .empty { margin: 2px 8px; font-size: 12px; color: var(--ink-muted); }
 
 .center { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-right: 1px solid var(--line); }
 .filters {
   display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(148px, auto) minmax(148px, auto); gap: 8px;
   padding: 10px 12px; background: var(--pane); border-bottom: 1px solid var(--line);
 }
-.filters .wide { grid-column: auto; }
 .filters .row2 { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 12px; }
 .filters .row2 label, .filters .row2 .count { white-space: nowrap; }
 .filters .row2 .count { margin-left: auto; color: var(--ink-muted); }
@@ -177,7 +177,7 @@ input[type="checkbox"]:disabled { border-color: var(--line); background-color: v
 }
 .row:hover { background: var(--pane-sunken); }
 .row[aria-selected="true"] { background: var(--select-row); }
-.row.active { box-shadow: inset 0 0 0 2px var(--focus); }
+.row.active { box-shadow: inset 0 0 0 1px var(--line); }
 .list:focus-visible .row.active { box-shadow: inset 0 0 0 2px var(--focus); }
 .row .subject { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .row .subject .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
