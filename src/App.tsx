@@ -439,8 +439,9 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     }
   };
 
-  const saveSettings = async (next: Settings) => {
+  const saveSettings = async (next: Settings, identity: { name: string; email: string } | null) => {
     try {
+      if (identity && repo) await api.setGitIdentity(repo.root, identity.name, identity.email);
       await api.saveSettings(next);
       setSettings(next);
       setDialog(null);
@@ -742,7 +743,7 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
           setTab("files");
         }}
       />
-      <SettingsDialog open={dialog === "settings"} settings={settings} error={dialogError} onCancel={() => setDialog(null)} onSave={saveSettings} />
+      <SettingsDialog open={dialog === "settings"} settings={settings} repoRoot={repo?.root ?? null} error={dialogError} onCancel={() => setDialog(null)} onSave={saveSettings} />
       {toastEl}
     </div>
   );

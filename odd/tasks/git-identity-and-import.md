@@ -8,9 +8,10 @@ Branch: feat/cherry-pick-app · Delivery: ask-on-risk · Runners: `cargo test` (
 - S3 "al importar debe reordenar si hay commits en el cherrypick masive": imported commits merge with the ones already in the basket, which stays in chronological order (oldest first).
 
 ## Tasks
-- [ ] T1 S1-S2 backend: git_identity / set_git_identity, import_hashes(path) · inline
-- [ ] T2 S1-S3 UI: Settings section, Import txt button, merge order test · inline
+- [x] T1 S1-S2 backend: git_identity / set_git_identity, import_hashes(path) · inline · 3e170ef · RED unresolved imports, GREEN 4/4
+- [x] T2 S1-S3 UI: Settings section, Import txt button, merge order test · inline · npm 41/41 (the S3 test passed at once: the basket was already ordered by date), tsc clean, E2E 7/7
 
 ## Log
 - L1 2026-10-26 user request (verbatim): "Ahora antes de pushear la primera y crear un realese con el ejecutable dela primera v1, debemos crear dos feat uno es configurar el usuario de git es decir correo y nombre, y tambien algo que se olvido es el tema de importar hashesh"
 - L2 Answers: scope "Por repositorio (Recommended)"; import "Aca una aclaracion al importar debe reordenar si hay commits en el cherrypick masive". The basket table already orders by date (orderByDate); placement and Settings location were defaulted and told to the user.
+- L3 E2E in the real app (scratch repo with a local user "Old Name", user settings backed up and restored, scratch removed): Settings shows "Old Name <old@e.com>" from this repository; "no-at-sign" is rejected ("Ingresa un correo válido para git") and git config is unchanged; saving writes Yajhura <yajhura@example.com> with --local and reopening shows it; Importar txt (native open dialog answered with window messages) adds 2 commits to 1 already loaded, in date order JIRA-1, JIRA-2, JIRA-3; importing again reports "2 ya estaban en la lista" and adds nothing.

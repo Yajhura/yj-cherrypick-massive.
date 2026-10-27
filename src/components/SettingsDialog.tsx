@@ -1,22 +1,50 @@
 import { useEffect, useState } from "react";
-import { Settings } from "../api";
+import { api, GitIdentity, Settings } from "../api";
 import { Dialog } from "./Dialog";
 import { languageNames, useI18n } from "../i18n";
 
 interface Props {
   open: boolean;
   settings: Settings;
+  /** The open repository, whose git user can be set; null on the start screen. */
+  repoRoot: string | null;
   error: string | null;
   onCancel: () => void;
-  onSave: (settings: Settings) => void;
+  /** `identity` is set only when the user changed the repository's git user. */
+  onSave: (settings: Settings, identity: { name: string; email: string } | null) => void;
 }
 
-export function SettingsDialog({ open, settings, error, onCancel, onSave }: Props) {
+const SCOPE_HINT = { local: "settings.gitScopeLocal", global: "settings.gitScopeGlobal", system: "settings.gitScopeSystem", none: "settings.gitScopeNone" } as const;
+
+export function SettingsDialog({ open, settings, repoRoot, error, onCancel, onSave }: Props) {
   const { t } = useI18n();
   const [draft, setDraft] = useState(settings);
+  const [identity, setIdentity] = useState<GitIdentity | null>(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   useEffect(() => {
     if (open) setDraft(settings);
   }, [open, settings]);
+
+  // The repository's current git user, read each time the dialog opens.
+  useEffect(() => {
+    if (!open || !repoRoot) return setIdentity(null);
+    let stale = false;
+    api
+      .gitIdentity(repoRoot)
+      .then((id) => {
+        if (stale) return;
+        setIdentity(id);
+        setName(id.name);
+        setEmail(id.email);
+      })
+      .catch(() => !stale && setIdentity(null));
+    return () => {
+      stale = true;
+    };
+  }, [open, repoRoot]);
+
+  const identityChanged = identity !== null && (name.trim() !== identity.name || email.trim() !== identity.email);
 
   const set = (patch: Partial<Settings>) => setDraft((d) => ({ ...d, ...patch }));
 
@@ -30,12 +58,28 @@ export function SettingsDialog({ open, settings, error, onCancel, onSave }: Prop
           <button className="btn" onClick={onCancel}>
             {t("common.cancel")}
           </button>
-          <button className="btn primary" onClick={() => onSave(draft)}>
+          <button className="btn primary" onClick={() => onSave(draft, identityChanged ? { name, email } : null)}>
             {t("common.save")}
           </button>
         </>
       }
     >
+      {identity && (
+        <fieldset className="field git-user">
+          <legend>{t("settings.gitUser")}</legend>
+          <div className="git-user-fields">
+            <label className="field">
+              <span>{t("settings.gitName")}</span>
+              <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
+            </label>
+            <label className="field">
+              <span>{t("settings.gitEmail")}</span>
+              <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+            </label>
+          </div>
+          <p className={`hint${identity.scope === "none" ? " warn-text" : ""}`}>{t(SCOPE_HINT[identity.scope])}</p>
+        </fieldset>
+      )}
       <label className="field">
         <span>{t("settings.language")}</span>
         <select className="input" value={draft.language} onChange={(e) => set({ language: e.target.value })}>

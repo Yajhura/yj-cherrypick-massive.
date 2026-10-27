@@ -447,6 +447,10 @@ aside.detail[hidden] { display: none; }
 .cp-target-actions { display: flex; align-items: center; gap: 12px; }
 .cp-target-actions .add-target { margin-left: -8px; }
 .cp-state { min-width: 0; }
+.git-user { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 12px 10px; margin: 0; }
+.git-user legend { padding: 0 4px; font-size: 12px; font-weight: 600; color: var(--ink); }
+.git-user-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.warn-text { color: var(--warn); }
 .name-wrap { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .name-field.exists { border-color: var(--warn); }
 .exists-note { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--warn); }

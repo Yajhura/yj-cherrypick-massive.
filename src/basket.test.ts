@@ -119,3 +119,10 @@ test("a new Branches column opens on develop, then main, then the next suggested
   assert.equal(columnBranch(branches, branches.map((b) => b.name)), null);
   assert.equal(columnBranch([{ name: "main", isRemote: false }], []), "main");
 });
+
+test("imported commits merge with the basket and the list stays oldest first", () => {
+  const basket: Basket = { source: "origin/develop", commits: [c] };
+  const { basket: merged, repeated } = addToBasket(basket, [b, c, a]);
+  assert.equal(repeated, 1);
+  assert.deepEqual(orderByDate(merged.commits).map((x) => x.hash), ["aaaa", "bbbb", "cccc"]);
+});

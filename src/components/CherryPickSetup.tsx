@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ask } from "@tauri-apps/plugin-dialog";
-import { Cherry, FileDown, Hash, LoaderCircle, Plus, Trash2, TriangleAlert, X } from "lucide-react";
-import { api, Branch, Commit, errorMessage } from "../api";
+import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
+import { Cherry, FileDown, FileUp, Hash, LoaderCircle, Plus, Trash2, TriangleAlert, X } from "lucide-react";
+import { api, Branch, Commit, errorMessage, Lookup } from "../api";
 import { Basket, inEveryTarget, orderByDate, suggestTarget } from "../basket";
 import { BranchPicker } from "./BranchPicker";
 import { formatDate } from "./CommitList";
@@ -139,17 +139,36 @@ export function CherryPickSetup({ repoRoot, branches, basket, defaultTarget, tem
   const ready = rows.length > 0 && rows.every((r) => r.target && r.branch.trim()) && ordered.length > 0;
   const presentIn = (hash: string) => targets.filter((t) => found.get(t)?.has(hash));
 
+  /** Adds what a paste or an imported txt resolved to, and says what happened. */
+  const addFound = (found: Lookup, from?: string) => {
+    const repeated = onAdd(found.commits);
+    const parts = [t("basket.added", { count: found.commits.length - repeated })];
+    if (repeated > 0) parts.push(t("basket.repeated", { count: repeated }));
+    if (found.merges.length > 0) parts.push(t("basket.merges", { list: found.merges.join(", ") }));
+    if (found.unknown.length > 0) parts.push(t("basket.unknown", { list: found.unknown.join(", ") }));
+    setReport({ text: (from ? `${from}: ` : "") + parts.join(" · "), error: found.unknown.length > 0 || found.merges.length > 0 });
+  };
+
+  const importTxt = async () => {
+    const path = await openDialog({ title: t("basket.importTitle"), filters: [{ name: "TXT", extensions: ["txt"] }] });
+    if (typeof path !== "string") return;
+    setLooking(true);
+    setReport(null);
+    try {
+      addFound(await api.importHashes(repoRoot, path, ticketPattern), path.split(/[\\/]/).pop());
+    } catch (e) {
+      setReport({ text: te(errorMessage(e)), error: true });
+    } finally {
+      setLooking(false);
+    }
+  };
+
   const addPasted = async () => {
     setLooking(true);
     setReport(null);
     try {
       const found = await api.lookupCommits(repoRoot, pasted, ticketPattern);
-      const repeated = onAdd(found.commits);
-      const parts = [t("basket.added", { count: found.commits.length - repeated })];
-      if (repeated > 0) parts.push(t("basket.repeated", { count: repeated }));
-      if (found.merges.length > 0) parts.push(t("basket.merges", { list: found.merges.join(", ") }));
-      if (found.unknown.length > 0) parts.push(t("basket.unknown", { list: found.unknown.join(", ") }));
-      setReport({ text: parts.join(" · "), error: found.unknown.length > 0 || found.merges.length > 0 });
+      addFound(found);
       if (found.unknown.length === 0) {
         setPasted("");
         setPasteOpen(false);
@@ -243,6 +262,9 @@ export function CherryPickSetup({ repoRoot, branches, basket, defaultTarget, tem
         )}
         <button className="btn" onClick={onExportTxt} disabled={ordered.length === 0} title={t("basket.exportTxtTitle")}>
           <FileDown size={16} /> {t("filters.exportTxt")}
+        </button>
+        <button className="btn" onClick={importTxt} disabled={busy || looking} title={t("basket.importTitle")}>
+          <FileUp size={16} /> {t("basket.import")}
         </button>
         <button className="btn" onClick={() => setPasteOpen((o) => !o)} aria-expanded={pasteOpen} disabled={busy}>
           <Hash size={16} /> {t("basket.addHash")}

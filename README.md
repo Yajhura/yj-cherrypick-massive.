@@ -52,6 +52,7 @@ Press **F1** in any tab to search a file by name or path.
 | Row `<>` button or Enter | Opens the commit in the Code tab. |
 | **Export txt** | Saves the selection as `<hash>  # subject (author)`, one per line. |
 | **Add by hash** | Pastes hashes (a teammate's txt works as is; text after `#` is ignored). |
+| **Import txt** | Adds the commits of a txt file; they merge with the list, which stays oldest first. |
 
 ## Settings
 
@@ -62,6 +63,7 @@ Press **F1** in any tab to search a file by name or path.
 | Explorer default branch | `origin/develop` | Branch the Files tab opens on; falls back to `origin/main`. |
 | Editor command | `code` | Used to open conflicts and worktrees. |
 | Language | Auto | English or Spanish. |
+| Git user of this repository | Your current git user | Name and email saved with `git config --local`; they sign the commits the cherry-pick creates. Shows whether the current one comes from the repo, global or nowhere. |
 
 Settings, the saved session and temporary worktrees live in `%APPDATA%\com.internal.cherrypickmasive`.
 
