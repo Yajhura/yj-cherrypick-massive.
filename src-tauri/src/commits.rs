@@ -172,6 +172,20 @@ pub(crate) fn log_format() -> String {
     format!("--format=%H{FIELD}%P{FIELD}%an{FIELD}%ae{FIELD}%aI{FIELD}%s{FIELD}%b{RECORD}")
 }
 
+/// A list of hashes is small; anything bigger is the wrong file.
+const MAX_IMPORT_BYTES: u64 = 1024 * 1024;
+
+/// Reads a txt of hashes (such as the one the app exports) and resolves it like a paste.
+pub fn import_hashes(git: &Git, path: &str, ticket_pattern: &str) -> AppResult<Lookup> {
+    let read_err = |e: std::io::Error| AppError::Invalid(format!("could not read {path}: {e}"));
+    if std::fs::metadata(path).map_err(read_err)?.len() > MAX_IMPORT_BYTES {
+        return Err(AppError::Invalid("the file is too large to be a list of hashes".into()));
+    }
+    let bytes = std::fs::read(path).map_err(read_err)?;
+    let text = String::from_utf8_lossy(&bytes);
+    lookup_commits(git, text.trim_start_matches('\u{FEFF}'), ticket_pattern)
+}
+
 /// Resolves hashes pasted as free text (separated by spaces, commas, semicolons or
 /// new lines). Only hex hashes are accepted, so a branch name is never resolved.
 pub fn lookup_commits(git: &Git, text: &str, ticket_pattern: &str) -> AppResult<Lookup> {

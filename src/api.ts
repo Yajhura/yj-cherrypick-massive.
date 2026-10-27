@@ -154,6 +154,13 @@ export interface QueueState {
   session: Session | null;
 }
 
+export interface GitIdentity {
+  name: string;
+  email: string;
+  /** Where git reads the name from; "none" means commits will fail. */
+  scope: "local" | "global" | "system" | "none";
+}
+
 export interface FileContent {
   /** null for binary or too large files. */
   content: string | null;
@@ -226,6 +233,9 @@ export const api = {
   dismissSession: () => invoke<void>("dismiss_session"),
   openInEditor: (path: string, files: string[] = []) => invoke<void>("open_in_editor", { path, files }),
   revealFolder: (path: string) => invoke<void>("reveal_folder", { path }),
+  gitIdentity: (repo: string) => invoke<GitIdentity>("git_identity", { repo }),
+  setGitIdentity: (repo: string, name: string, email: string) => invoke<void>("set_git_identity", { repo, name, email }),
+  importHashes: (repo: string, path: string, ticketPattern: string) => invoke<Lookup>("import_hashes", { repo, path, ticketPattern }),
   listFiles: (repo: string, rev: string) => invoke<string[]>("list_files", { repo, rev }),
   readFile: (repo: string, rev: string, path: string) => invoke<FileContent>("read_file", { repo, rev, path }),
   blameFile: (repo: string, rev: string, path: string) => invoke<Blame>("blame_file", { repo, rev, path }),

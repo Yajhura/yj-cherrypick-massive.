@@ -6,6 +6,7 @@ pub mod error;
 pub mod export;
 pub mod git;
 pub mod history;
+pub mod identity;
 pub mod naming;
 pub mod queue;
 pub mod repo;
@@ -270,6 +271,21 @@ async fn file_log(repo: String, rev: String, path: String, ticket_pattern: Strin
 }
 
 #[tauri::command]
+async fn git_identity(repo: String) -> AppResult<identity::Identity> {
+    blocking(move || identity::git_identity(&Git::new(&repo))).await
+}
+
+#[tauri::command]
+async fn set_git_identity(repo: String, name: String, email: String) -> AppResult<()> {
+    blocking(move || identity::set_git_identity(&Git::new(&repo), &name, &email)).await
+}
+
+#[tauri::command]
+async fn import_hashes(repo: String, path: String, ticket_pattern: String) -> AppResult<Lookup> {
+    blocking(move || commits::import_hashes(&Git::new(&repo), &path, &ticket_pattern)).await
+}
+
+#[tauri::command]
 fn reveal_folder(path: String) -> AppResult<()> {
     editor::reveal_folder(&path)
 }
@@ -314,6 +330,9 @@ pub fn run() {
             commits_in_target,
             existing_branches,
             reveal_folder,
+            git_identity,
+            set_git_identity,
+            import_hashes,
             list_files,
             read_file,
             blame_file,
