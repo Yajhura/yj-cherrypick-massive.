@@ -103,3 +103,9 @@ export function suggestTarget(branches: { name: string; isRemote: boolean }[], c
   const rank = (name: string) => (/\/release/.test(name) ? 0 : /\/(main|master)$/.test(name) ? 1 : 2);
   return [...free].sort((a, b) => rank(a) - rank(b))[0] ?? "";
 }
+
+/** The branch a new Branches column opens on: develop or main first, then the next suggestion. */
+export function columnBranch(branches: { name: string; isRemote: boolean }[], used: string[]): string | null {
+  const preferred = ["origin/develop", "origin/main", "origin/master"].find((n) => !used.includes(n) && branches.some((b) => b.name === n));
+  return preferred ?? (suggestTarget(branches, used, null) || branches.find((b) => !used.includes(b.name))?.name || null);
+}

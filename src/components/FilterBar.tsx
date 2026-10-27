@@ -33,7 +33,8 @@ export const FilterBar = forwardRef<HTMLInputElement, Props>(function FilterBar(
     <div className={`filters${compact ? " compact" : ""}`} role="search" aria-label={t("filters.label")}>
       <div className="row0">
         <div className="field source-field">
-          <span>{t("filters.branch")}</span>
+          {/* A column already names its branch in its own header. */}
+          <span className={compact ? "sr-only" : undefined}>{t("filters.branch")}</span>
           <BranchPicker branches={branches} value={source} onChange={onSource} label={t("filters.branch")} />
         </div>
         <button

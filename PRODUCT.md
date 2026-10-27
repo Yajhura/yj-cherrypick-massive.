@@ -34,6 +34,8 @@ Unlike general git GUIs, it treats a batch of cherry-picks as one resumable sess
 - Conflict actions: Continue, Skip, Abort; open worktree in editor.
 - Branch name from an editable template (`{target}`, `{date}`, `{time}`, `{ticket}`). A branch that already exists gets the commits on top, after a warning.
 - One active session at a time.
+- Branches tab: 2 to 4 branches side by side, each with its own filters and selection, loadable into Cherry-pick.
+- Selected commits export to a txt (`<hash>  # subject (author)`) that "Add by hash" reads back; text after `#` is ignored.
 - Undecided: auto-update distribution details (GitHub repo and signing key not provided yet).
 
 ## Brand Commitments

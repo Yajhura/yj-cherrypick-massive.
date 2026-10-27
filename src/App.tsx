@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ask, open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { Cherry, CircleCheck, Code, History, OctagonAlert, TriangleAlert } from "lucide-react";
+import { Cherry, CircleCheck, Code, Columns3, History, OctagonAlert, Plus, TriangleAlert } from "lucide-react";
 import { api, Branch, Commit, errorMessage, ExportFormat, isSessionFinished, OpenedRepo, Queue, QueueState, Session, Settings } from "./api";
-import { addToBasket, Basket, emptyBasket, isQueueActive, loadIntoBasket, orderByDate, polledSession, progressOf, targetsDone } from "./basket";
+import { addToBasket, Basket, columnBranch, emptyBasket, isQueueActive, loadIntoBasket, orderByDate, polledSession, progressOf, targetsDone } from "./basket";
 import { useBranchView, useCommitDetail } from "./hooks";
 import { Toolbar } from "./components/Toolbar";
 import { BranchPane } from "./components/BranchPane";
+import { BranchColumn } from "./components/BranchColumn";
 import { CommitDetail } from "./components/CommitDetail";
 import { Display, displayOf, SessionPanel } from "./components/SessionPanel";
 import { CherryPickSetup } from "./components/CherryPickSetup";
@@ -16,7 +17,12 @@ import { StartScreen } from "./components/StartScreen";
 import { notifyInBackground } from "./notify";
 import { I18nProvider, useI18n } from "./i18n";
 
-type Tab = "history" | "cherry-pick" | "code";
+type Tab = "history" | "cherry-pick" | "code" | "branches";
+
+/** The Branches tab shows 2 to 4 columns. */
+const MIN_COLUMNS = 2;
+const MAX_COLUMNS = 4;
+let nextColumnId = 1;
 
 /** How often the saved session is read while the engine applies commits. */
 const PROGRESS_POLL_MS = 600;
@@ -74,6 +80,9 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [columns, setColumns] = useState<{ id: number; initial: string | null }[]>([]);
+  // The Code tab follows the History list, or the list of the column it was opened from.
+  const [codeList, setCodeList] = useState<{ commits: Commit[]; index: number } | null>(null);
   const [tab, setTab] = useState<Tab>("history");
   const [basket, setBasket] = useState<Basket>(emptyBasket);
   const [startError, setStartError] = useState<string | null>(null);
@@ -109,6 +118,12 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
       setRepo(opened);
       setFetchError(opened.fetchError);
       history.reset(defaultSource(opened.branches));
+      const first = columnBranch(opened.branches, []);
+      setColumns([
+        { id: nextColumnId++, initial: first },
+        { id: nextColumnId++, initial: columnBranch(opened.branches, first ? [first] : []) },
+      ]);
+      setCodeList(null);
       setBasket(emptyBasket);
       setSettings(await api.getSettings());
     } catch (e) {
@@ -201,26 +216,35 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doneKey]);
 
-  const loadIntoCherryPick = async () => {
-    if (!source || selected.size === 0) return;
-    const result = loadIntoBasket(basket, source, [...selected.values()]);
+  /** Puts commits in the Cherry-pick basket; resolves false when the user kept the current one. */
+  const loadCommits = async (from: string, commits: Commit[]) => {
+    const result = loadIntoBasket(basket, from, commits);
     let next: Basket;
     if (result.kind === "confirm") {
-      const confirmed = await ask(t("basket.replaceBody", { current: result.current ?? "", source }), {
+      const confirmed = await ask(t("basket.replaceBody", { current: result.current ?? "", source: from }), {
         title: t("basket.replaceTitle"),
         kind: "warning",
         okLabel: t("basket.replace"),
         cancelLabel: t("common.cancel"),
       });
-      if (!confirmed) return;
+      if (!confirmed) return false;
       next = result.replacement;
     } else {
       next = result.basket;
     }
     setBasket(next);
-    history.clearSelection();
     setStartError(null);
     setTab("cherry-pick");
+    return true;
+  };
+
+  const loadIntoCherryPick = async () => {
+    if (source && selected.size > 0 && (await loadCommits(source, [...selected.values()]))) history.clearSelection();
+  };
+
+  const openCodeFromHistory = () => {
+    setCodeList(null);
+    setTab("code");
   };
 
   const fetchNow = async () => {
@@ -408,6 +432,9 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
       } else if (e.key === "3" && e.altKey) {
         e.preventDefault();
         setTab("code");
+      } else if (e.key === "4" && e.altKey) {
+        e.preventDefault();
+        setTab("branches");
       } else if (e.key === "Escape" && typing && e.target === searchRef.current) {
         listRef.current?.focus();
       }
@@ -483,6 +510,9 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
         <button role="tab" id="tab-code" aria-controls="panel-code" aria-selected={tab === "code"} className="tab" onClick={() => setTab("code")} title="Alt+3">
           <Code size={15} aria-hidden="true" /> {t("tabs.code")}
         </button>
+        <button role="tab" id="tab-branches" aria-controls="panel-branches" aria-selected={tab === "branches"} className="tab" onClick={() => setTab("branches")} title="Alt+4">
+          <Columns3 size={15} aria-hidden="true" /> {t("tabs.branches")}
+        </button>
       </div>
 
       <div id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden={tab !== "history"} className={`workspace${showChanges ? "" : " no-detail"}`}>
@@ -495,7 +525,7 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
             searchRef={searchRef}
             onLoad={loadIntoCherryPick}
             onExportTxt={() => exportHashes([...selected.values()], source)}
-            onOpen={() => setTab("code")}
+            onOpen={openCodeFromHistory}
             notices={
               fetchError && (
                 <div className="notice warn" role="status">
@@ -510,7 +540,7 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
           />
         </main>
         <aside className="detail" aria-label={t("detail.label")} hidden={!showChanges}>
-          <CommitDetail commit={active} stat={detail?.stat ?? null} diff={detail?.diff ?? null} loading={detailLoading} error={detailError} onViewCode={() => setTab("code")} />
+          <CommitDetail commit={active} stat={detail?.stat ?? null} diff={detail?.diff ?? null} loading={detailLoading} error={detailError} onViewCode={openCodeFromHistory} />
         </aside>
       </div>
 
@@ -565,16 +595,65 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
         )}
       </div>
       <div id="panel-code" role="tabpanel" aria-labelledby="tab-code" hidden={tab !== "code"} className="code-panel">
-        <CodeViewer
-          repoRoot={repo.root}
-          commit={active}
-          active={tab === "code"}
-          hasPrev={safeIndex > 0}
-          hasNext={safeIndex < visible.length - 1}
-          onPrev={() => history.setActiveIndex(Math.max(0, safeIndex - 1))}
-          onNext={() => history.setActiveIndex(Math.min(visible.length - 1, safeIndex + 1))}
-          notify={notify}
-        />
+        {codeList ? (
+          <CodeViewer
+            repoRoot={repo.root}
+            commit={codeList.commits[codeList.index] ?? null}
+            active={tab === "code"}
+            hasPrev={codeList.index > 0}
+            hasNext={codeList.index < codeList.commits.length - 1}
+            onPrev={() => setCodeList({ ...codeList, index: Math.max(0, codeList.index - 1) })}
+            onNext={() => setCodeList({ ...codeList, index: Math.min(codeList.commits.length - 1, codeList.index + 1) })}
+            notify={notify}
+          />
+        ) : (
+          <CodeViewer
+            repoRoot={repo.root}
+            commit={active}
+            active={tab === "code"}
+            hasPrev={safeIndex > 0}
+            hasNext={safeIndex < visible.length - 1}
+            onPrev={() => history.setActiveIndex(Math.max(0, safeIndex - 1))}
+            onNext={() => history.setActiveIndex(Math.min(visible.length - 1, safeIndex + 1))}
+            notify={notify}
+          />
+        )}
+      </div>
+      <div id="panel-branches" role="tabpanel" aria-labelledby="tab-branches" hidden={tab !== "branches"} className="branches-panel">
+        <div className="branches-bar">
+          <span className="muted">{t("branches.intro")}</span>
+          <div className="spacer" />
+          <button
+            className="btn"
+            disabled={columns.length >= MAX_COLUMNS}
+            title={columns.length >= MAX_COLUMNS ? t("branches.maximum", { count: MAX_COLUMNS }) : undefined}
+            onClick={() => setColumns((all) => [...all, { id: nextColumnId++, initial: columnBranch(repo.branches, all.map((c) => c.initial ?? "")) }])}
+          >
+            <Plus size={16} /> {t("branches.add")}
+          </button>
+        </div>
+        <div className="branch-cols" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>
+          {columns.map((col, i) => (
+            <BranchColumn
+              key={col.id}
+              repoRoot={repo.root}
+              branches={repo.branches}
+              initial={col.initial}
+              number={i + 1}
+              ticketPattern={settings.ticketPattern}
+              reloadKey={reloadKey}
+              sessionStatus={sessionStatus}
+              canRemove={columns.length > MIN_COLUMNS}
+              onRemove={() => setColumns((all) => all.filter((c) => c.id !== col.id))}
+              onLoad={loadCommits}
+              onExportTxt={(from, commits) => exportHashes(commits, from)}
+              onOpen={(commits, index) => {
+                setCodeList({ commits, index });
+                setTab("code");
+              }}
+            />
+          ))}
+        </div>
       </div>
       <SettingsDialog open={dialog === "settings"} settings={settings} error={dialogError} onCancel={() => setDialog(null)} onSave={saveSettings} />
       {toastEl}

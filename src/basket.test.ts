@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { type Basket, addToBasket, emptyBasket, inEveryTarget, isQueueActive, loadIntoBasket, orderByDate, polledSession, progressOf, rangeBetween, suggestTarget, targetsDone } from "./basket.ts";
+import { type Basket, addToBasket, columnBranch, emptyBasket, inEveryTarget, isQueueActive, loadIntoBasket, orderByDate, polledSession, progressOf, rangeBetween, suggestTarget, targetsDone } from "./basket.ts";
 import type { Commit, Queue, QueueEntry, Session } from "./api.ts";
 
 const commit = (hash: string, date: string, isMerge = false): Commit => ({
@@ -107,4 +107,15 @@ test("the next suggested target skips the source and the targets already chosen"
   assert.equal(suggestTarget(branches, ["origin/release/2"], "origin/develop"), "origin/release/1");
   assert.equal(suggestTarget(branches, ["origin/release/2", "origin/release/1"], "origin/develop"), "origin/main");
   assert.equal(suggestTarget(branches, ["origin/release/2", "origin/release/1", "origin/main"], "origin/develop"), "");
+});
+
+test("a new Branches column opens on develop, then main, then the next suggested branch", () => {
+  const branches = ["origin/main", "origin/develop", "origin/release/2", "develop"].map((name) => ({ name, isRemote: name.startsWith("origin/") }));
+  assert.equal(columnBranch(branches, []), "origin/develop");
+  assert.equal(columnBranch(branches, ["origin/develop"]), "origin/main");
+  assert.equal(columnBranch(branches, ["origin/develop", "origin/main"]), "origin/release/2");
+  // Remote branches come first; then local ones, then nothing.
+  assert.equal(columnBranch(branches, ["origin/develop", "origin/release/2", "origin/main"]), "develop");
+  assert.equal(columnBranch(branches, branches.map((b) => b.name)), null);
+  assert.equal(columnBranch([{ name: "main", isRemote: false }], []), "main");
 });
