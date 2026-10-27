@@ -168,7 +168,7 @@ pub struct Lookup {
     pub merges: Vec<String>,
 }
 
-fn log_format() -> String {
+pub(crate) fn log_format() -> String {
     format!("--format=%H{FIELD}%P{FIELD}%an{FIELD}%ae{FIELD}%aI{FIELD}%s{FIELD}%b{RECORD}")
 }
 

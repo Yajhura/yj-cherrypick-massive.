@@ -17,6 +17,8 @@ pub struct Settings {
     pub editor_command: String,
     /// UI language: `auto` (follow the OS), `en` or `es`.
     pub language: String,
+    /// Branch the Files tab opens on.
+    pub explorer_branch: String,
 }
 
 const DEFAULT_TEMPLATE: &str = "cherry-pick/{target}/{date}-{time}";
@@ -30,6 +32,7 @@ impl Default for Settings {
             branch_template: DEFAULT_TEMPLATE.to_string(),
             editor_command: "code".to_string(),
             language: "auto".to_string(),
+            explorer_branch: "origin/develop".to_string(),
         }
     }
 }

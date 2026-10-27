@@ -82,7 +82,7 @@ pub struct FileVersions {
 }
 
 /// The full hash of `rev` as a commit; anything else (including option-like input) is rejected.
-fn commit_id(git: &Git, rev: &str) -> AppResult<String> {
+pub(crate) fn commit_id(git: &Git, rev: &str) -> AppResult<String> {
     let out = git.output(&["rev-parse", "--verify", "--quiet", "--end-of-options", &format!("{rev}^{{commit}}")])?;
     if !out.success {
         return Err(crate::error::AppError::Invalid(format!("unknown commit: {rev}")));
@@ -190,7 +190,7 @@ pub fn commit_patch(git: &Git, hash: &str, ignore_whitespace: bool) -> AppResult
 }
 
 /// Reads `path` at `rev`: `Ok(None)` when it does not exist there.
-fn blob(git: &Git, rev: &str, path: &str) -> AppResult<Option<(String, bool, bool)>> {
+pub(crate) fn blob(git: &Git, rev: &str, path: &str) -> AppResult<Option<(String, bool, bool)>> {
     let spec = format!("{rev}:{path}");
     let size = git.output(&["cat-file", "-s", &spec])?;
     if !size.success {

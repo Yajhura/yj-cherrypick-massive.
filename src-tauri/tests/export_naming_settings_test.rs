@@ -129,6 +129,7 @@ fn settings_written_before_language_existed_still_load() {
     let settings = SettingsStore::new(path).load();
     assert_eq!(settings.recent_repos, ["C:/r"]);
     assert_eq!(settings.branch_template, "b/{date}", "a saved template is kept");
+    assert_eq!(settings.explorer_branch, "origin/develop");
     assert_eq!(settings.language, "auto");
 }
 

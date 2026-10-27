@@ -1,6 +1,7 @@
 pub mod cherry_pick;
 pub mod commits;
 pub mod editor;
+pub mod explorer;
 pub mod error;
 pub mod export;
 pub mod git;
@@ -249,6 +250,26 @@ fn open_in_editor(paths: State<'_, AppPaths>, path: String, files: Vec<String>) 
 }
 
 #[tauri::command]
+async fn list_files(repo: String, rev: String) -> AppResult<Vec<String>> {
+    blocking(move || explorer::list_files(&Git::new(&repo), &rev)).await
+}
+
+#[tauri::command]
+async fn read_file(repo: String, rev: String, path: String) -> AppResult<explorer::FileContent> {
+    blocking(move || explorer::read_file(&Git::new(&repo), &rev, &path)).await
+}
+
+#[tauri::command]
+async fn blame_file(repo: String, rev: String, path: String) -> AppResult<explorer::Blame> {
+    blocking(move || explorer::blame(&Git::new(&repo), &rev, &path)).await
+}
+
+#[tauri::command]
+async fn file_log(repo: String, rev: String, path: String, ticket_pattern: String) -> AppResult<Vec<Commit>> {
+    blocking(move || explorer::file_log(&Git::new(&repo), &rev, &path, &ticket_pattern)).await
+}
+
+#[tauri::command]
 fn reveal_folder(path: String) -> AppResult<()> {
     editor::reveal_folder(&path)
 }
@@ -293,6 +314,10 @@ pub fn run() {
             commits_in_target,
             existing_branches,
             reveal_folder,
+            list_files,
+            read_file,
+            blame_file,
+            file_log,
             current_session,
             remove_pending_commits,
             conflict_status,

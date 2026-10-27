@@ -18,6 +18,8 @@ export interface Settings {
   editorCommand: string;
   /** `auto` follows the OS language; otherwise `en` or `es`. */
   language: string;
+  /** Branch the Files tab opens on. */
+  explorerBranch: string;
 }
 
 export interface Commit {
@@ -152,6 +154,25 @@ export interface QueueState {
   session: Session | null;
 }
 
+export interface FileContent {
+  /** null for binary or too large files. */
+  content: string | null;
+  binary: boolean;
+  tooLarge: boolean;
+}
+
+export interface BlameCommit {
+  author: string;
+  date: string;
+  subject: string;
+}
+
+export interface Blame {
+  /** The commit hash of each line, in line order. */
+  lines: string[];
+  commits: Record<string, BlameCommit>;
+}
+
 export type ExportFormat = "csv" | "markdown" | "xlsx" | "txt";
 
 /** Errors from Rust arrive as plain strings; normalize anything else. */
@@ -205,6 +226,10 @@ export const api = {
   dismissSession: () => invoke<void>("dismiss_session"),
   openInEditor: (path: string, files: string[] = []) => invoke<void>("open_in_editor", { path, files }),
   revealFolder: (path: string) => invoke<void>("reveal_folder", { path }),
+  listFiles: (repo: string, rev: string) => invoke<string[]>("list_files", { repo, rev }),
+  readFile: (repo: string, rev: string, path: string) => invoke<FileContent>("read_file", { repo, rev, path }),
+  blameFile: (repo: string, rev: string, path: string) => invoke<Blame>("blame_file", { repo, rev, path }),
+  fileLog: (repo: string, rev: string, path: string, ticketPattern: string) => invoke<Commit[]>("file_log", { repo, rev, path, ticketPattern }),
   exportCommits: (commits: Commit[], format: ExportFormat, path: string) =>
     invoke<void>("export_commits", { commits, format, path }),
 };

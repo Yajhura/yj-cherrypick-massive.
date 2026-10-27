@@ -33,6 +33,7 @@ const defaultSettings: Settings = {
   branchTemplate: "cherry-pick/{target}/{date}-{time}",
   editorCommand: "code",
   language: "auto",
+  explorerBranch: "origin/develop",
 };
 
 const extensions: Record<ExportFormat, string> = { xlsx: "xlsx", csv: "csv", markdown: "md", txt: "txt" };
