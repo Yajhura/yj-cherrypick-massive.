@@ -55,6 +55,11 @@ export function SettingsDialog({ open, settings, error, onCancel, onSave }: Prop
         <p className="hint">{t("settings.templateHint", { target: "{target}", date: "{date}", time: "{time}", ticket: "{ticket}" })}</p>
       </label>
       <label className="field">
+        <span>{t("settings.explorerBranch")}</span>
+        <input className="input mono" value={draft.explorerBranch} onChange={(e) => set({ explorerBranch: e.target.value })} />
+        <p className="hint">{t("settings.explorerBranchHint")}</p>
+      </label>
+      <label className="field">
         <span>{t("settings.editor")}</span>
         <input className="input mono" value={draft.editorCommand} onChange={(e) => set({ editorCommand: e.target.value })} />
         <p className="hint">{t("settings.editorHint")}</p>

@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ask, open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { Cherry, CircleCheck, Code, Columns3, History, OctagonAlert, Plus, TriangleAlert } from "lucide-react";
+import { Cherry, CircleCheck, Code, Columns3, FolderTree, History, OctagonAlert, Plus, TriangleAlert } from "lucide-react";
 import { api, Branch, Commit, errorMessage, ExportFormat, isSessionFinished, OpenedRepo, Queue, QueueState, Session, Settings } from "./api";
 import { addToBasket, Basket, columnBranch, emptyBasket, isQueueActive, loadIntoBasket, orderByDate, polledSession, progressOf, targetsDone } from "./basket";
 import { useBranchView, useCommitDetail } from "./hooks";
 import { Toolbar } from "./components/Toolbar";
 import { BranchPane } from "./components/BranchPane";
 import { BranchColumn } from "./components/BranchColumn";
+import { FilesTab } from "./components/FilesTab";
+import { FileSearch } from "./components/FileSearch";
+import { explorerStart } from "./explorerModel";
 import { CommitDetail } from "./components/CommitDetail";
 import { Display, displayOf, SessionPanel } from "./components/SessionPanel";
 import { CherryPickSetup } from "./components/CherryPickSetup";
@@ -17,7 +20,7 @@ import { StartScreen } from "./components/StartScreen";
 import { notifyInBackground } from "./notify";
 import { I18nProvider, useI18n } from "./i18n";
 
-type Tab = "history" | "cherry-pick" | "code" | "branches";
+type Tab = "history" | "cherry-pick" | "code" | "branches" | "files";
 
 /** The Branches tab shows 2 to 4 columns. */
 const MIN_COLUMNS = 2;
@@ -82,6 +85,13 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [columns, setColumns] = useState<{ id: number; initial: string | null }[]>([]);
+  // Files tab: the branch it reads, its file list and the open file. F1 searches that list.
+  const [explorerRev, setExplorerRev] = useState<string | null>(null);
+  const [explorerPath, setExplorerPath] = useState<string | null>(null);
+  const [files, setFiles] = useState<string[]>([]);
+  const [filesLoading, setFilesLoading] = useState(false);
+  const [filesError, setFilesError] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   // The Code tab follows the History list, or the list of the column it was opened from.
   const [codeList, setCodeList] = useState<{ commits: Commit[]; index: number } | null>(null);
   const [tab, setTab] = useState<Tab>("history");
@@ -125,6 +135,9 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
         { id: nextColumnId++, initial: columnBranch(opened.branches, first ? [first] : []) },
       ]);
       setCodeList(null);
+      const saved = await api.getSettings().catch(() => null);
+      setExplorerRev(explorerStart(opened.branches, saved?.explorerBranch ?? "origin/develop"));
+      setExplorerPath(null);
       setBasket(emptyBasket);
       setSettings(await api.getSettings());
     } catch (e) {
@@ -161,6 +174,39 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
   const history = useBranchView(repo?.root ?? null, settings.ticketPattern, reloadKey);
   const { source, filters, selected, visible, safeIndex, active } = history;
   const { detail, loading: detailLoading, error: detailError } = useCommitDetail(repo?.root ?? null, active, visible[safeIndex + 1] ?? null);
+
+  useEffect(() => {
+    if (!repo || !explorerRev) return setFiles([]);
+    let stale = false;
+    setFilesLoading(true);
+    setFilesError(null);
+    api
+      .listFiles(repo.root, explorerRev)
+      .then((list) => !stale && setFiles(list))
+      .catch((e) => {
+        if (stale) return;
+        setFiles([]);
+        setFilesError(fail(e));
+      })
+      .finally(() => !stale && setFilesLoading(false));
+    return () => {
+      stale = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repo?.root, explorerRev, reloadKey]);
+
+  /** Opens a commit given by hash (from blame or file history) in the Code tab. */
+  const openCommitByHash = async (hash: string) => {
+    if (!repo) return;
+    try {
+      const found = await api.lookupCommits(repo.root, hash, settings.ticketPattern);
+      if (found.commits.length === 0) return notify(t("files.mergeCommit", { hash: hash.slice(0, 8) }), true);
+      setCodeList({ commits: found.commits, index: 0 });
+      setTab("code");
+    } catch (e) {
+      notify(fail(e), true);
+    }
+  };
 
   const sessionActive = session !== null && !isSessionFinished(session);
 
@@ -409,7 +455,10 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement;
       if (dialog) return;
-      if (e.key === "/" && !typing && tab === "history") {
+      if (e.key === "F1") {
+        e.preventDefault();
+        if (repo) setSearchOpen(true);
+      } else if (e.key === "/" && !typing && tab === "history") {
         e.preventDefault();
         searchRef.current?.focus();
       } else if (e.key === "F5") {
@@ -436,6 +485,9 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
       } else if (e.key === "4" && e.altKey) {
         e.preventDefault();
         setTab("branches");
+      } else if (e.key === "5" && e.altKey) {
+        e.preventDefault();
+        setTab("files");
       } else if (e.key === "Escape" && typing && e.target === searchRef.current) {
         listRef.current?.focus();
       }
@@ -513,6 +565,9 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
         </button>
         <button role="tab" id="tab-branches" aria-controls="panel-branches" aria-selected={tab === "branches"} className="tab" onClick={() => setTab("branches")} title="Alt+4">
           <Columns3 size={15} aria-hidden="true" /> {t("tabs.branches")}
+        </button>
+        <button role="tab" id="tab-files" aria-controls="panel-files" aria-selected={tab === "files"} className="tab" onClick={() => setTab("files")} title="Alt+5 · F1">
+          <FolderTree size={15} aria-hidden="true" /> {t("tabs.files")}
         </button>
       </div>
 
@@ -656,6 +711,37 @@ function Main({ settings, setSettings }: { settings: Settings; setSettings: (s: 
           ))}
         </div>
       </div>
+      <div id="panel-files" role="tabpanel" aria-labelledby="tab-files" hidden={tab !== "files"} className="code-panel">
+        <FilesTab
+          repoRoot={repo.root}
+          branches={repo.branches}
+          rev={explorerRev}
+          onRev={(rev) => {
+            setExplorerRev(rev);
+            setExplorerPath(null);
+          }}
+          files={files}
+          filesLoading={filesLoading}
+          filesError={filesError}
+          path={explorerPath}
+          onPath={setExplorerPath}
+          ticketPattern={settings.ticketPattern}
+          active={tab === "files"}
+          onOpenCommit={openCommitByHash}
+          notify={notify}
+        />
+      </div>
+      <FileSearch
+        open={searchOpen}
+        files={files}
+        branch={explorerRev}
+        onClose={() => setSearchOpen(false)}
+        onPick={(path) => {
+          setSearchOpen(false);
+          setExplorerPath(path);
+          setTab("files");
+        }}
+      />
       <SettingsDialog open={dialog === "settings"} settings={settings} error={dialogError} onCancel={() => setDialog(null)} onSave={saveSettings} />
       {toastEl}
     </div>
